@@ -1,3 +1,12 @@
 spring:
   application:
     name: ecotech-api
+  datasource:
+   url: jdbc:postgresql://localhost:5433/ecotech
+   username: postgres
+   password: postgres
+
+  jpa:
+    open-in-view: false
+
+

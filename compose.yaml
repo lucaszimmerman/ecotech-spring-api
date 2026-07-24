@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16.3
+    container_name: ecotech-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ecotech
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - ecotech_postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - ecotech-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ecotech"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:8.9
+    container_name: ecotech-pgadmin
+    restart: unless-stopped
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+
+    ports:
+      - "15432:80"
+
+    volumes:
+      - ecotech_pgadmin_data:/var/lib/pgadmin
+
+    networks:
+      - ecotech-network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  ecotech_postgres_data:
+  ecotech_pgadmin_data:
+
+networks:
+  ecotech-network:
+    driver: bridge
