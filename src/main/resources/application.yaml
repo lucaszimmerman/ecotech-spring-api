@@ -1,12 +1,25 @@
 spring:
   application:
     name: ecotech-api
+
   datasource:
-   url: jdbc:postgresql://localhost:5433/ecotech
-   username: postgres
-   password: postgres
+    url: jdbc:postgresql://localhost:5433/ecotech
+    username: postgres
+    password: postgres
 
   jpa:
+    hibernate:
+      ddl-auto: validate
     open-in-view: false
 
+    properties:
+      hibernate:
+        format_sql: true
 
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+logging:
+  level:
+    org.hibernate.SQL: debug
