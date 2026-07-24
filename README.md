@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # EcoTech API
 
 REST API for EcoTech, a sustainability-focused social network.
@@ -29,7 +28,4 @@ EcoTech is a social platform where users can share content about sustainability,
 ## Status
 
 Project under development.
-=======
-# ecotech-spring-api
-REST API for EcoTech, a sustainability-focused social network built with Java and Spring Boot.
->>>>>>> 1f845dda9b3b15fd7f04fe837734cc2d976769af
+
