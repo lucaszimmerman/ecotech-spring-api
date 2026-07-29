@@ -1,9 +1,9 @@
 package com.ecotech.api.controller;
 
+import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ecotech.api.controller.common.GenericController;
 import com.ecotech.api.controller.dto.CreateUserDTO;
 import com.ecotech.api.controller.dto.UpdateUserDTO;
 import com.ecotech.api.controller.dto.UserResponseDTO;
@@ -27,16 +28,17 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
-public class UserController {
+public class UserController implements GenericController{
 
     private final UserService userService;
     private final UserMapper userMapper;
 
     @PostMapping
     public ResponseEntity<Void> create(@RequestBody @Valid CreateUserDTO createUserDTO) {
-        var user = userMapper.toEntity(createUserDTO);
-        userService.save(user);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        User user = userMapper.toEntity(createUserDTO);
+        User savedUser = userService.save(user);
+        URI location = generateLocationHeader(savedUser.getId());
+        return ResponseEntity.created(location).build();
     }
 
     @GetMapping("/{id}")
