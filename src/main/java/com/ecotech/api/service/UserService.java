@@ -1,7 +1,6 @@
 package com.ecotech.api.service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,12 +24,12 @@ public class UserService {
     private final PasswordEncoder encoder;
 
     @Transactional
-    public void save(User user) {
+    public User save(User user) {
         normalizeForCreate(user);
         validator.validateForCreate(user);
         var password = user.getPassword();
         user.setPassword(encoder.encode(password));
-        repository.save(user);
+        return repository.save(user);
     }
 
     @Transactional
