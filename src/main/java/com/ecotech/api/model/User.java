@@ -25,18 +25,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "users",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "uk_users_username",
-            columnNames = "username"
-        ),
-        @UniqueConstraint(
-            name = "uk_users_email",
-            columnNames = "email"
-        )
-    }
-)
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_users_username", columnNames = "username"),
+        @UniqueConstraint(name = "uk_users_email", columnNames = "email")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -47,36 +39,35 @@ public class User {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column( nullable = false, length = 30)
+    @Column(nullable = false, length = 30)
     private String username;
 
-    @Column( nullable = false, length = 150)
+    @Column(nullable = false, length = 150)
     private String email;
 
-    @Column( nullable = false, length = 255)
+    @Column(nullable = false, length = 255)
     private String password;
 
-    @Column( nullable = false, length = 100)
+    @Column(nullable = false, length = 100)
     private String name;
 
     @Column(name = "cover_image_url", length = 500)
     private String coverImageUrl;
 
-
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
 
-    @Column( length = 100)
+    @Column(length = 100)
     private String city;
 
-    @Column( length = 255)
+    @Column(length = 255)
     private String website;
 
-    @Column( length = 500)
+    @Column(length = 500)
     private String bio;
 
-    @Column( nullable = false)
-    private Boolean active;
+    @Column(nullable = false)
+    private boolean active = true;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -90,12 +81,8 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-     @PrePersist
+    @PrePersist
     private void prePersist() {
-        if (active == null) {
-            active = true;
-        }
-
         if (role == null) {
             role = UserRole.USER;
         }
