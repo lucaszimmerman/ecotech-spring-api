@@ -9,6 +9,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.ecotech.api.model.User;
+import com.ecotech.api.model.enums.UserRole;
 
 /**
  * Representação do usuário autenticado dentro do Spring Security.
@@ -27,6 +28,8 @@ public class UserPrincipal implements UserDetails {
     private final UUID id;
     private final String username;
     private final String password;
+    private final String name;
+    private final UserRole role;
     private final boolean active;
     private final Collection<? extends GrantedAuthority> authorities;
 
@@ -34,6 +37,8 @@ public class UserPrincipal implements UserDetails {
         this.id = user.getId();
         this.username = user.getUsername();
         this.password = user.getPassword();
+        this.name = user.getName();
+        this.role = user.getRole();
         this.active = user.isActive();
 
         this.authorities = List.of(
@@ -45,6 +50,14 @@ public class UserPrincipal implements UserDetails {
 
     public UUID getId() {
         return id;
+    }
+
+     public String getName() {
+        return name;
+    }
+
+    public UserRole getRole() {
+        return role;
     }
 
     @Override
