@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
-public class UserController implements GenericController{
+public class UserController implements GenericController {
 
     private final UserService userService;
     private final UserMapper userMapper;
@@ -42,28 +45,31 @@ public class UserController implements GenericController{
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> findById(@PathVariable UUID id){
-       User user = userService.findById(id);
+    @PreAuthorize("hasRole('ADMIN') or #p0.toString() == authentication.name")
+    public ResponseEntity<UserResponseDTO> findById(@PathVariable UUID id) {
+        User user = userService.findById(id);
 
-       UserResponseDTO response = userMapper.toResponseDTO(user);
+        UserResponseDTO response = userMapper.toResponseDTO(user);
 
-       return ResponseEntity.ok(response);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponseDTO>> findAll(){
-        
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserResponseDTO>> findAll() {
+
         List<UserResponseDTO> users = userService
-        .findAll()
-        .stream()
-        .map(userMapper::toResponseDTO)
-        .toList();
+                .findAll()
+                .stream()
+                .map(userMapper::toResponseDTO)
+                .toList();
 
         return ResponseEntity.ok(users);
     }
-    
+
     @PutMapping("/{id}")
-    public ResponseEntity<Void> update(@PathVariable UUID id, @RequestBody @Valid UpdateUserDTO updateUserDTO){
+    @PreAuthorize("hasRole('ADMIN') or #p0.toString() == authentication.name")
+    public ResponseEntity<Void> update(@PathVariable UUID id, @RequestBody @Valid UpdateUserDTO updateUserDTO) {
         User user = userService.findById(id);
         userMapper.updateEntity(updateUserDTO, user);
         userService.update(user);
@@ -71,11 +77,25 @@ public class UserController implements GenericController{
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id){
+    @PreAuthorize("hasRole('ADMIN') or #p0.toString() == authentication.name")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
 
         User user = userService.findById(id);
         userService.delete(user);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserResponseDTO> findAuthenticatedUser(
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        UserResponseDTO response = userMapper.toResponseDTO(
+            userService.findById(userId)
+    );
+
+        return ResponseEntity.ok(response);
     }
 }
