@@ -5,11 +5,12 @@ import java.util.UUID;
 import com.ecotech.api.model.enums.UserRole;
 
 public record LoginResponseDTO(
-
         UUID id,
         String username,
         String name,
-        UserRole role
-    ) {
-
+        UserRole role,
+        String accessToken,
+        String tokenType,
+        long expiresIn
+) {
 }
