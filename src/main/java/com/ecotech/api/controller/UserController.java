@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -44,6 +45,7 @@ public class UserController implements GenericController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #p0.toString() == authentication.name")
     public ResponseEntity<UserResponseDTO> findById(@PathVariable UUID id) {
         User user = userService.findById(id);
 
@@ -53,6 +55,7 @@ public class UserController implements GenericController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponseDTO>> findAll() {
 
         List<UserResponseDTO> users = userService
@@ -65,6 +68,7 @@ public class UserController implements GenericController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #p0.toString() == authentication.name")
     public ResponseEntity<Void> update(@PathVariable UUID id, @RequestBody @Valid UpdateUserDTO updateUserDTO) {
         User user = userService.findById(id);
         userMapper.updateEntity(updateUserDTO, user);
@@ -73,6 +77,7 @@ public class UserController implements GenericController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #p0.toString() == authentication.name")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
 
         User user = userService.findById(id);
@@ -82,6 +87,7 @@ public class UserController implements GenericController {
     }
 
     @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserResponseDTO> findAuthenticatedUser(
             @AuthenticationPrincipal Jwt jwt) {
         UUID userId = UUID.fromString(jwt.getSubject());
