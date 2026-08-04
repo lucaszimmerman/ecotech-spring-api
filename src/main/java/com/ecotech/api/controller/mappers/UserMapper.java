@@ -7,6 +7,7 @@ import org.mapstruct.MappingTarget;
 import com.ecotech.api.controller.dto.CreateUserDTO;
 import com.ecotech.api.controller.dto.UpdateUserDTO;
 import com.ecotech.api.controller.dto.UserResponseDTO;
+import com.ecotech.api.controller.dto.UserSummaryDTO;
 import com.ecotech.api.model.User;
 
 
@@ -16,6 +17,8 @@ public interface UserMapper {
     User toEntity(CreateUserDTO createUserDTO);
 
     UserResponseDTO toResponseDTO(User user);
+
+    UserSummaryDTO toSummaryDTO(User user);
     
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "password", ignore = true)
