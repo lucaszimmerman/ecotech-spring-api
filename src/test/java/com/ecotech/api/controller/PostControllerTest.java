@@ -167,7 +167,7 @@ class PostControllerTest {
                                   "content": "   "
                                 }
                                 """))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.status").value(422));
     }
 
