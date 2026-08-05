@@ -26,6 +26,7 @@ public class JwtConfiguration {
 
     @Bean
     SecretKey jwtSecretKey(JwtProperties jwtProperties) {
+        
         byte[] keyBytes = Base64
                 .getDecoder()
                 .decode(jwtProperties.secretKey());
