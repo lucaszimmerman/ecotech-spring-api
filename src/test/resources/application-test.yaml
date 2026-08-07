@@ -15,3 +15,8 @@ spring:
 security:
   jwt:
     issuer: ecotech-api
+
+aws:
+  s3:
+    bucket-name: ecotech-test
+    region: us-east-1

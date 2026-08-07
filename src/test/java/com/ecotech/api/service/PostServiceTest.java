@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -22,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mock.web.MockMultipartFile;
 
 import com.ecotech.api.exceptions.RegistroNaoEncontradoException;
 import com.ecotech.api.model.Post;
@@ -44,6 +46,9 @@ class PostServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private PostImageService postImageService;
 
     @InjectMocks
     private PostService service;
@@ -82,7 +87,7 @@ class PostServiceTest {
         when(repository.save(post))
                 .thenReturn(post);
 
-        Post result = service.save(post, user.getId());
+        Post result = service.save(post, user.getId(), null);
 
         assertThat(result).isSameAs(post);
 
@@ -91,8 +96,38 @@ class PostServiceTest {
         verify(validator).validatePost(postCaptor.capture());
         verify(repository).save(postCaptor.getValue());
         verify(userRepository).findById(user.getId());
+        verify(postImageService).uploadImage(postCaptor.getValue(), null);
+        verifyNoMoreInteractions(postImageService);
 
         assertThat(postCaptor.getValue().getUser()).isEqualTo(user);
+    }
+
+    @Test
+    void shouldCreatePostUploadingImageWhenFileIsInformed() {
+        User user = createUser("lucas");
+        Post post = new Post();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "post.png",
+                "image/png",
+                "image".getBytes());
+        post.setContent("Conteudo valido do post.");
+
+        when(userRepository.findById(user.getId()))
+                .thenReturn(Optional.of(user));
+
+        when(repository.save(post))
+                .thenReturn(post);
+
+        Post result = service.save(post, user.getId(), file);
+
+        assertThat(result).isSameAs(post);
+
+        verify(validator).validatePost(post);
+        verify(repository).save(post);
+        verify(userRepository).findById(user.getId());
+        verify(postImageService).uploadImage(post, file);
+        verifyNoMoreInteractions(postImageService);
     }
 
     @Test
@@ -104,12 +139,13 @@ class PostServiceTest {
         when(userRepository.findById(userId))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.save(post, userId))
+        assertThatThrownBy(() -> service.save(post, userId, null))
                 .isInstanceOf(RegistroNaoEncontradoException.class)
                 .hasMessageContaining(USER_NOT_FOUND_MESSAGE);
 
         verify(userRepository).findById(userId);
         verifyNoInteractions(validator);
+        verifyNoInteractions(postImageService);
         verify(repository, never()).save(any(Post.class));
     }
 
@@ -127,6 +163,30 @@ class PostServiceTest {
 
         verify(validator).validatePost(post);
         verify(repository).save(post);
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void shouldUpdateContentKeepingCurrentImageWhenFileIsNotInformed() {
+        User user = createUser("lucas");
+        Post post = createPost(user);
+        post.setImageUrl("posts/" + post.getId() + "/old.png");
+
+        when(postImageService.prepareImageUpdate(post, null, false))
+                .thenReturn(null);
+        when(repository.save(post))
+                .thenReturn(post);
+
+        Post result = service.update(post, null, false);
+
+        assertThat(result).isSameAs(post);
+        assertThat(post.getImageUrl()).isEqualTo("posts/" + post.getId() + "/old.png");
+
+        verify(validator).validatePost(post);
+        verify(postImageService).prepareImageUpdate(post, null, false);
+        verify(repository).save(post);
+        verify(postImageService).deleteImage(null);
+        verifyNoMoreInteractions(postImageService);
         verifyNoInteractions(userRepository);
     }
 
@@ -220,6 +280,24 @@ class PostServiceTest {
         service.delete(post);
 
         verify(repository).delete(post);
+        verify(postImageService).deleteImage(null);
+        verifyNoMoreInteractions(postImageService);
+        verifyNoInteractions(validator);
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void shouldDeletePostImageWhenPostHasImage() {
+        User user = createUser("lucas");
+        Post post = createPost(user);
+        String imageUrl = "posts/" + post.getId() + "/image.png";
+        post.setImageUrl(imageUrl);
+
+        service.delete(post);
+
+        verify(repository).delete(post);
+        verify(postImageService).deleteImage(imageUrl);
+        verifyNoMoreInteractions(postImageService);
         verifyNoInteractions(validator);
         verifyNoInteractions(userRepository);
     }

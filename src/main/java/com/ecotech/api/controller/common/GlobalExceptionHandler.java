@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.ecotech.api.controller.dto.ErroCampo;
 import com.ecotech.api.controller.dto.ErroResposta;
@@ -100,6 +101,16 @@ public class GlobalExceptionHandler {
         return new ErroResposta(
                 HttpStatus.UNAUTHORIZED.value(),
                 "Credenciais inválidas.",
+                List.of());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    @ResponseStatus(HttpStatus.CONTENT_TOO_LARGE)
+    public ErroResposta handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException e) {
+        return new ErroResposta(
+                HttpStatus.CONTENT_TOO_LARGE.value(),
+                "O arquivo enviado excede o tamanho máximo permitido.",
                 List.of());
     }
 

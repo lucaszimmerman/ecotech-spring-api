@@ -10,12 +10,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.ecotech.api.controller.common.GenericController;
 import com.ecotech.api.controller.dto.CreatePostDTO;
@@ -39,13 +41,14 @@ public class PostController implements GenericController {
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> create(
-            @RequestBody @Valid CreatePostDTO createPostDTO,
+            @ModelAttribute @Valid CreatePostDTO createPostDTO,
+            @RequestParam(value = "file", required = false) MultipartFile file,
             Authentication authentication) {
         UUID authenticatedUserId = UUID.fromString(authentication.getName());
 
         Post post = postMapper.toEntity(createPostDTO);
 
-        Post savedPost = postService.save(post, authenticatedUserId);
+        Post savedPost = postService.save(post, authenticatedUserId, file);
 
         URI location = generateLocationHeader(savedPost.getId());
 
@@ -87,14 +90,16 @@ public class PostController implements GenericController {
     @PreAuthorize("hasRole('ADMIN') or @postAuthorization.isOwner(#id, authentication)")
     public ResponseEntity<Void> update(
             @PathVariable UUID id,
-            @RequestBody @Valid UpdatePostDTO updatePostDTO,
+            @ModelAttribute @Valid UpdatePostDTO updatePostDTO,
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "removeImage", defaultValue = "false") boolean removeImage,
             Authentication authentication) {
 
         Post post = postService.findById(id);
 
         postMapper.updateEntity(updatePostDTO, post);
 
-        postService.update(post);
+        postService.update(post, file, removeImage);
 
         return ResponseEntity.noContent().build();
     };

@@ -6,16 +6,18 @@ import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.ecotech.api.controller.common.GenericController;
 import com.ecotech.api.controller.dto.CreateUserDTO;
@@ -89,13 +91,40 @@ public class UserController implements GenericController {
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserResponseDTO> findAuthenticatedUser(
-            @AuthenticationPrincipal Jwt jwt) {
-        UUID userId = UUID.fromString(jwt.getSubject());
+            Authentication authentication) {
+
+        UUID userId = UUID.fromString(authentication.getName());
 
         UserResponseDTO response = userMapper.toResponseDTO(
-            userService.findById(userId)
-    );
+                userService.findById(userId));
 
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/me/profile-image")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> updateProfileImage(
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) {
+        UUID authenticatedUserId = UUID.fromString(authentication.getName());
+
+        userService.updateProfileImage(
+                authenticatedUserId, file);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/me/cover-image")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> updateCoverImage(
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) {
+        UUID authenticatedUserId = UUID.fromString(authentication.getName());
+
+        userService.updateCoverImage(
+                authenticatedUserId,
+                file);
+
+        return ResponseEntity.noContent().build();
     }
 }

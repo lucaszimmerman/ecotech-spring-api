@@ -19,11 +19,23 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+        
+        
 security:
   jwt:
     secret-key: ${JWT_SECRET_KEY}
     expiration: 3600
     issuer: ecotech-api
+
+aws:
+  s3:
+    bucket-name: ${AWS_S3_BUCKET}
+    region: ${AWS_REGION}
 
 logging:
   level:

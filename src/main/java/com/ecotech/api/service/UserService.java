@@ -6,12 +6,12 @@ import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.ecotech.api.exceptions.RegistroNaoEncontradoException;
 import com.ecotech.api.model.User;
 import com.ecotech.api.repository.UserRepository;
 import com.ecotech.api.validator.UserValidator;
-
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,6 +22,7 @@ public class UserService {
     private final UserRepository repository;
     private final UserValidator validator;
     private final PasswordEncoder encoder;
+    private final ImageStorageService imageStorageService;
 
     @Transactional
     public User save(User user) {
@@ -33,18 +34,17 @@ public class UserService {
     }
 
     @Transactional
-    public void update(User user){
+    public void update(User user) {
         normalizeForUpdate(user);
         validator.validateForUpdate(user);
         repository.save(user);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public User findById(UUID id) {
-    return repository.findById(id)
-        .orElseThrow(() -> new RegistroNaoEncontradoException(
-            "Usuário não encontrado."
-        ));
+        return repository.findById(id)
+                .orElseThrow(() -> new RegistroNaoEncontradoException(
+                        "Usuário não encontrado."));
     }
 
     @Transactional(readOnly = true)
@@ -53,12 +53,53 @@ public class UserService {
     }
 
     @Transactional
-    public void delete(User user){
+    public void delete(User user) {
         repository.delete(user);
     }
-    
 
-     private void normalizeForCreate(User user) {
+    @Transactional
+    public void updateProfileImage(
+            UUID userId,
+            MultipartFile file) {
+        User user = findById(userId);
+
+        String oldImageKey = user.getProfileImageUrl();
+
+        String newImageKey = imageStorageService.upload(
+                file,
+                "users/" + userId + "/profile");
+
+        user.setProfileImageUrl(newImageKey);
+
+        repository.save(user);
+
+        if (oldImageKey != null && !oldImageKey.isBlank()) {
+            imageStorageService.delete(oldImageKey);
+        }
+    }
+
+    @Transactional
+    public void updateCoverImage(
+            UUID userId,
+            MultipartFile file) {
+        User user = findById(userId);
+
+        String oldImageKey = user.getCoverImageUrl();
+
+        String newImageKey = imageStorageService.upload(
+                file,
+                "users/" + userId + "/cover");
+
+        user.setCoverImageUrl(newImageKey);
+
+        repository.save(user);
+
+        if (oldImageKey != null && !oldImageKey.isBlank()) {
+            imageStorageService.delete(oldImageKey);
+        }
+    }
+
+    private void normalizeForCreate(User user) {
         user.setUsername(user.getUsername().trim());
         user.setEmail(user.getEmail().trim().toLowerCase());
         user.setName(user.getName().trim());
