@@ -13,10 +13,13 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 import com.ecotech.api.controller.dto.CreateUserDTO;
+import com.ecotech.api.controller.dto.auth.ForgotPasswordDTO;
 import com.ecotech.api.controller.dto.auth.LoginRequestDTO;
 import com.ecotech.api.controller.dto.auth.LoginResponseDTO;
+import com.ecotech.api.controller.dto.auth.ResetPasswordDTO;
 import com.ecotech.api.service.AuthenticationService;
 import com.ecotech.api.service.EmailVerificationService;
+import com.ecotech.api.service.PasswordRecoveryService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,7 @@ public class AuthController {
 
     private final AuthenticationService authenticationService;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordRecoveryService passwordRecoveryService;
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(
@@ -61,6 +65,24 @@ public class AuthController {
         UUID authenticatedUserId = UUID.fromString(authentication.getName());
 
         emailVerificationService.resendVerification(authenticatedUserId);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(
+            @RequestBody @Valid ForgotPasswordDTO dto) {
+
+        passwordRecoveryService.requestPasswordReset(dto.email());
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(
+            @RequestBody @Valid ResetPasswordDTO dto) {
+
+        passwordRecoveryService.resetPassword(dto);
 
         return ResponseEntity.noContent().build();
     }

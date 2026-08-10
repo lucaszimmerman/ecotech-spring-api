@@ -83,5 +83,63 @@ public class EmailService {
         }
     }
 
+    public void sendPasswordResetEmail(
+            String destinationEmail,
+            String resetLink
+    ){
+
+        Destination destination = Destination.builder()
+               .toAddresses(destinationEmail)
+               .build();
+
+        Content subject = Content.builder()
+                .data("Recuperacao de senha - EcoTech")
+                .charset("UTF-8")
+                .build();
+
+        Content body = Content.builder()
+                .data(
+                    """
+                    Recebemos uma solicitacao para redefinir sua senha no EcoTech.
+
+                    Acesse o link abaixo para criar uma nova senha:
+
+                    %s
+
+                    Este link expira em 30 minutos. Se voce nao solicitou a recuperacao, ignore esta mensagem.
+                    """.formatted(resetLink)
+                )
+                .charset("UTF-8")
+                .build();
+
+        Message message = Message.builder()
+                 .subject(subject)
+                 .body(Body.builder()
+                          .text(body)
+                          .build())
+                 .build();
+
+        SendEmailRequest request = SendEmailRequest.builder()
+                 .fromEmailAddress(sesProperties.fromEmail())
+                 .destination(destination)
+                 .content(EmailContent.builder()
+                         .simple(message)
+                        .build())
+                .build();
+
+        try {
+            sesClient.sendEmail(request);
+        } catch (SesV2Exception e) {
+            log.warn(
+                    "Falha ao enviar email de recuperacao de senha pelo SES. awsErrorCode={}, statusCode={}",
+                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null,
+                    e.statusCode());
+
+            throw new EmailDeliveryException(
+                    "Nao foi possivel enviar o email de recuperacao de senha.",
+                    e);
+        }
+    }
+
     
 }

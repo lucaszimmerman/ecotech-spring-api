@@ -27,11 +27,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.ecotech.api.controller.dto.CreateUserDTO;
+import com.ecotech.api.controller.dto.auth.ForgotPasswordDTO;
 import com.ecotech.api.controller.dto.auth.LoginResponseDTO;
+import com.ecotech.api.controller.dto.auth.ResetPasswordDTO;
 import com.ecotech.api.exceptions.RegistroDuplicadoException;
 import com.ecotech.api.model.enums.UserRole;
 import com.ecotech.api.service.AuthenticationService;
 import com.ecotech.api.service.EmailVerificationService;
+import com.ecotech.api.service.PasswordRecoveryService;
 import com.ecotech.api.support.TestJwtProperties;
 
 @SpringBootTest
@@ -52,6 +55,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private EmailVerificationService emailVerificationService;
+
+    @MockitoBean
+    private PasswordRecoveryService passwordRecoveryService;
 
     @MockitoBean
     private AuthenticationProvider authenticationProvider;
@@ -168,5 +174,71 @@ class AuthControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(emailVerificationService).resendVerification(userId);
+    }
+
+    @Test
+    void shouldRequestPasswordResetWithoutJwt() throws Exception {
+        doNothing().when(passwordRecoveryService).requestPasswordReset("lucas@email.com");
+
+        mockMvc.perform(post("/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "lucas@email.com"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        verify(passwordRecoveryService).requestPasswordReset("lucas@email.com");
+    }
+
+    @Test
+    void shouldReturnUnprocessableEntityWhenForgotPasswordPayloadIsInvalid() throws Exception {
+        mockMvc.perform(post("/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "email-invalido"
+                                }
+                                """))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.status").value(422));
+
+        verifyNoInteractions(passwordRecoveryService);
+    }
+
+    @Test
+    void shouldResetPasswordWithoutJwt() throws Exception {
+        doNothing().when(passwordRecoveryService).resetPassword(any(ResetPasswordDTO.class));
+
+        mockMvc.perform(post("/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "token": "reset-token",
+                                  "newPassword": "123456",
+                                  "confirmPassword": "123456"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        verify(passwordRecoveryService).resetPassword(any(ResetPasswordDTO.class));
+    }
+
+    @Test
+    void shouldReturnUnprocessableEntityWhenResetPasswordPayloadIsInvalid() throws Exception {
+        mockMvc.perform(post("/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "token": "",
+                                  "newPassword": "123",
+                                  "confirmPassword": ""
+                                }
+                                """))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.status").value(422));
+
+        verifyNoInteractions(passwordRecoveryService);
     }
 }
