@@ -23,9 +23,11 @@ import com.ecotech.api.repository.EmailVerificationTokenRepository;
 import com.ecotech.api.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmailVerificationService {
 
     private static final Duration TOKEN_EXPIRATION = Duration.ofMinutes(30);
@@ -39,6 +41,7 @@ public class EmailVerificationService {
 
     @Transactional
     public void sendVerification(User user) {
+        log.debug("Gerando token de verificacao de email. userId={}", user.getId());
 
         tokenRepository.deleteByUserId(user.getId());
 
@@ -64,10 +67,12 @@ public class EmailVerificationService {
         emailService.sendEmailVerification(
                 user.getEmail(),
                 verificationLink);
+        log.info("Email de verificacao solicitado ao provedor. userId={}", user.getId());
     }
 
     @Transactional
     public void verifyEmail(String rawToken) {
+        log.debug("Iniciando confirmacao de email.");
 
         String tokenHash = hashToken(rawToken);
 
@@ -78,6 +83,10 @@ public class EmailVerificationService {
                         "Token de verificação inválido."));
 
         if (verificationToken.getUsedAt() != null) {
+            log.warn(
+                    "Confirmacao de email recusada: token ja utilizado. userId={}",
+                    verificationToken.getUser().getId()
+            );
             throw new CampoInvalidoException(
                     "token",
                     "Este token já foi utilizado.");
@@ -87,6 +96,10 @@ public class EmailVerificationService {
                 .getExpiresAt()
                 .isBefore(LocalDateTime.now())) {
 
+            log.warn(
+                    "Confirmacao de email recusada: token expirado. userId={}",
+                    verificationToken.getUser().getId()
+            );
             throw new CampoInvalidoException(
                     "token",
                     "O token de verificação expirou.");
@@ -98,10 +111,12 @@ public class EmailVerificationService {
 
         verificationToken.setUsedAt(
                 LocalDateTime.now());
+        log.info("Email confirmado com sucesso. userId={}", user.getId());
     }
 
     @Transactional
     public void resendVerification(UUID userId) {
+        log.debug("Iniciando reenvio de verificacao de email. userId={}", userId);
 
         User user = userRepository
                 .findById(userId)
@@ -110,12 +125,14 @@ public class EmailVerificationService {
 
         if (Boolean.TRUE.equals(
                 user.getEmailVerified())) {
+            log.warn("Reenvio de verificacao recusado: email ja confirmado. userId={}", userId);
             throw new CampoInvalidoException(
                     "email",
                     "O email já foi confirmado.");
         }
 
         sendVerification(user);
+        log.info("Reenvio de verificacao concluido. userId={}", userId);
     }
 
     private String generateToken() {

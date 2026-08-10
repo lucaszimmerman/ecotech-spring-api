@@ -16,9 +16,11 @@ import com.ecotech.api.validator.UserFollowValidator;
 
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserFollowService {
 
     private final UserFollowRepository repository;
@@ -27,6 +29,7 @@ public class UserFollowService {
 
     @Transactional
     public void follow(UUID followerId, UUID followedId){
+        log.debug("Iniciando follow. followerId={}, followedId={}", followerId, followedId);
         
         User follower = findUserById(followerId);
         User followed = findUserById(followedId);
@@ -38,6 +41,7 @@ public class UserFollowService {
         validator.validateFollowing(userFollow);
 
         repository.save(userFollow);
+        log.info("Usuario seguido com sucesso. followerId={}, followedId={}", followerId, followedId);
     }
 
     @Transactional
@@ -45,7 +49,10 @@ public class UserFollowService {
         repository.findByFollowerIdAndFollowedId(
             followerId,
             followedId
-        ).ifPresent(repository::delete);
+        ).ifPresentOrElse(userFollow -> {
+            repository.delete(userFollow);
+            log.info("Usuario deixou de seguir outro usuario. followerId={}, followedId={}", followerId, followedId);
+        }, () -> log.debug("Unfollow ignorado: relacionamento inexistente. followerId={}, followedId={}", followerId, followedId));
     }
 
     @Transactional(readOnly = true)

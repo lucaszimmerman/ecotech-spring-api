@@ -16,9 +16,11 @@ import com.ecotech.api.repository.UserRepository;
 import com.ecotech.api.validator.PostValidator;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PostService {
 
     private final PostRepository repository;
@@ -28,6 +30,7 @@ public class PostService {
 
     @Transactional
     public Post save(Post post, UUID userId, MultipartFile file) {
+        log.debug("Iniciando criacao de post. userId={}, hasFile={}", userId, file != null && !file.isEmpty());
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RegistroNaoEncontradoException("Usuário não encontrado."));
 
@@ -37,6 +40,8 @@ public class PostService {
         Post savedPost = repository.save(post);
 
         postImageService.uploadImage(savedPost, file);
+
+        log.info("Post criado com sucesso. postId={}, userId={}", savedPost.getId(), userId);
 
         return savedPost;
     }
@@ -49,6 +54,12 @@ public class PostService {
 
     @Transactional
     public Post update(Post post, MultipartFile file, boolean removeImage) {
+        log.debug(
+                "Iniciando atualizacao de post. postId={}, hasFile={}, removeImage={}",
+                post.getId(),
+                file != null && !file.isEmpty(),
+                removeImage
+        );
         validator.validatePost(post);
 
         String imageUrlToDelete = postImageService.prepareImageUpdate(
@@ -59,6 +70,8 @@ public class PostService {
         Post updatedPost = repository.save(post);
 
         postImageService.deleteImage(imageUrlToDelete);
+
+        log.info("Post atualizado com sucesso. postId={}, userId={}", updatedPost.getId(), updatedPost.getUser().getId());
 
         return updatedPost;
     }
@@ -86,6 +99,7 @@ public class PostService {
         repository.delete(post);
 
         postImageService.deleteImage(imageUrl);
+        log.info("Post removido com sucesso. postId={}, userId={}", post.getId(), post.getUser().getId());
     }
 
 

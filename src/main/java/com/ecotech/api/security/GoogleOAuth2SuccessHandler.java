@@ -19,10 +19,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class GoogleOAuth2SuccessHandler
         implements AuthenticationSuccessHandler {
 
@@ -48,6 +50,7 @@ public class GoogleOAuth2SuccessHandler
             user = googleAuthenticationService
                     .authenticate(oidcUser);
         } catch (OperacaoNaoPermitidaException exception) {
+            log.warn("Login Google recusado no success handler: {}", exception.getMessage());
             googleOAuth2FailureHandler.writeError(
                     response,
                     HttpStatus.BAD_REQUEST,
@@ -87,5 +90,7 @@ public class GoogleOAuth2SuccessHandler
                 response.getWriter(),
                 loginResponse
         );
+
+        log.info("Resposta de login Google enviada. userId={}", principal.getId());
     }
 }

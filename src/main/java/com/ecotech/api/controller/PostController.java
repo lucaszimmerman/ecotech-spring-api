@@ -27,12 +27,21 @@ import com.ecotech.api.controller.mappers.PostMapper;
 import com.ecotech.api.model.Post;
 import com.ecotech.api.service.PostService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import static com.ecotech.api.config.OpenApiConfiguration.BEARER_AUTH;
 
 @RestController
 @RequestMapping("/posts")
 @RequiredArgsConstructor
+@Tag(name = "Posts")
+@SecurityRequirement(name = BEARER_AUTH)
 public class PostController implements GenericController {
 
     private final PostService postService;
@@ -40,6 +49,14 @@ public class PostController implements GenericController {
 
     @PostMapping
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Cria uma publicacao")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Publicacao criada com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Usuario nao encontrado"),
+            @ApiResponse(responseCode = "422", description = "Dados de entrada ou arquivo invalidos"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> create(
             @ModelAttribute @Valid CreatePostDTO createPostDTO,
             @RequestParam(value = "file", required = false) MultipartFile file,
@@ -57,6 +74,14 @@ public class PostController implements GenericController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Busca uma publicacao por ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Publicacao encontrada"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Publicacao nao encontrada"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<PostResponseDTO> getPostById(@PathVariable UUID id) {
         Post post = postService.findById(id);
 
@@ -67,6 +92,12 @@ public class PostController implements GenericController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Lista publicacoes")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Publicacoes listadas"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Page<PostResponseDTO>> getAllPosts(Pageable pageable) {
         Page<PostResponseDTO> response = postService
                 .findAll(pageable)
@@ -77,6 +108,13 @@ public class PostController implements GenericController {
 
     @GetMapping("/user/{userId}")
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Lista publicacoes de um usuario")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Publicacoes listadas"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Page<PostResponseDTO>> getPostsByUserId(
             @PathVariable UUID userId, Pageable pageable) {
         Page<PostResponseDTO> response = postService
@@ -88,6 +126,16 @@ public class PostController implements GenericController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @postAuthorization.isOwner(#id, authentication)")
+    @Operation(summary = "Atualiza uma publicacao")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Publicacao atualizada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "404", description = "Publicacao nao encontrada"),
+            @ApiResponse(responseCode = "422", description = "Dados de entrada ou arquivo invalidos"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> update(
             @PathVariable UUID id,
             @ModelAttribute @Valid UpdatePostDTO updatePostDTO,
@@ -106,6 +154,15 @@ public class PostController implements GenericController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @postAuthorization.isOwner(#id, authentication)")
+    @Operation(summary = "Remove uma publicacao")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Publicacao removida com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "404", description = "Publicacao nao encontrada"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> delete(
             @PathVariable UUID id,
             Authentication authentication) {

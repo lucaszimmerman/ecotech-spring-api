@@ -15,9 +15,11 @@ import com.ecotech.api.model.User;
 import com.ecotech.api.security.UserPrincipal;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthenticationService {
 
         private final EmailVerificationService emailVerificationService;
@@ -28,6 +30,8 @@ public class AuthenticationService {
         private final UserMapper userMapper;
 
         public LoginResponseDTO login(LoginRequestDTO dto) {
+                log.debug("Iniciando autenticacao local.");
+
                 Authentication authenticationRequest = UsernamePasswordAuthenticationToken.unauthenticated(
                                 dto.username(),
                                 dto.password());
@@ -38,11 +42,14 @@ public class AuthenticationService {
 
                 String accessToken = jwtService.generateToken(principal);
 
+                log.info("Autenticacao local concluida. userId={}", principal.getId());
+
                 return toLoginResponse(principal, accessToken);
         }
 
         @Transactional
         public LoginResponseDTO register(CreateUserDTO dto) {
+                log.debug("Iniciando cadastro de usuario local.");
 
                 User user = userMapper.toEntity(dto);
 
@@ -53,6 +60,8 @@ public class AuthenticationService {
                 UserPrincipal principal = new UserPrincipal(savedUser);
 
                 String accessToken = jwtService.generateToken(principal);
+
+                log.info("Cadastro local concluido. userId={}", principal.getId());
 
                 return toLoginResponse(principal, accessToken);
         }

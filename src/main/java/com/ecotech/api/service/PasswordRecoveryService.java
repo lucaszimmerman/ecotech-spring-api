@@ -23,9 +23,11 @@ import com.ecotech.api.repository.PasswordResetTokenRepository;
 import com.ecotech.api.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PasswordRecoveryService {
 
     private static final Duration TOKEN_EXPIRATION = Duration.ofMinutes(30);
@@ -41,23 +43,35 @@ public class PasswordRecoveryService {
     @Transactional
     public void requestPasswordReset(String email) {
         String normalizedEmail = email.trim().toLowerCase();
+        log.debug("Solicitacao de recuperacao de senha recebida.");
 
         userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .filter(user -> Boolean.TRUE.equals(user.getEmailVerified()))
-                .ifPresent(this::createAndSendPasswordReset);
+                .ifPresentOrElse(
+                        this::createAndSendPasswordReset,
+                        () -> log.warn("Solicitacao de recuperacao ignorada: usuario inexistente ou email nao verificado."));
     }
 
     @Transactional
     public void resetPassword(ResetPasswordDTO dto) {
+        log.debug("Iniciando redefinicao de senha.");
+
         String tokenHash = hashToken(dto.token());
 
         PasswordResetToken passwordResetToken = tokenRepository
                 .findByTokenHash(tokenHash)
-                .orElseThrow(() -> new CampoInvalidoException(
-                        "token",
-                        "Token de recuperacao de senha invalido."));
+                .orElseThrow(() -> {
+                    log.warn("Redefinicao de senha recusada: token inexistente.");
+                    return new CampoInvalidoException(
+                            "token",
+                            "Token de recuperacao de senha invalido.");
+                });
 
         if (passwordResetToken.getUsedAt() != null) {
+            log.warn(
+                    "Redefinicao de senha recusada: token ja utilizado. userId={}",
+                    passwordResetToken.getUser().getId()
+            );
             throw new CampoInvalidoException(
                     "token",
                     "Este token ja foi utilizado.");
@@ -67,12 +81,20 @@ public class PasswordRecoveryService {
                 .getExpiresAt()
                 .isBefore(LocalDateTime.now())) {
 
+            log.warn(
+                    "Redefinicao de senha recusada: token expirado. userId={}",
+                    passwordResetToken.getUser().getId()
+            );
             throw new CampoInvalidoException(
                     "token",
                     "O token de recuperacao de senha expirou.");
         }
 
         if (!dto.newPassword().equals(dto.confirmPassword())) {
+            log.warn(
+                    "Redefinicao de senha recusada: confirmacao divergente. userId={}",
+                    passwordResetToken.getUser().getId()
+            );
             throw new CampoInvalidoException(
                     "confirmPassword",
                     "A confirmacao da nova senha nao confere.");
@@ -85,9 +107,13 @@ public class PasswordRecoveryService {
 
         passwordResetToken.setUsedAt(
                 LocalDateTime.now());
+
+        log.info("Senha redefinida com sucesso. userId={}", user.getId());
     }
 
     private void createAndSendPasswordReset(User user) {
+        log.debug("Gerando token de recuperacao de senha. userId={}", user.getId());
+
         tokenRepository.deleteByUserId(user.getId());
 
         String rawToken = generateToken();
@@ -112,6 +138,8 @@ public class PasswordRecoveryService {
         emailService.sendPasswordResetEmail(
                 user.getEmail(),
                 resetLink);
+
+        log.info("Email de recuperacao solicitado ao provedor. userId={}", user.getId());
     }
 
     private String generateToken() {

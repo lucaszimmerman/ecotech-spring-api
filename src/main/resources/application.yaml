@@ -58,6 +58,20 @@ aws:
 app:
   base-url: ${APP_BASE_URL}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
 logging:
   level:
+    root: info
+    com.ecotech.api: debug
+    org.springframework.security: info
     org.hibernate.SQL: debug

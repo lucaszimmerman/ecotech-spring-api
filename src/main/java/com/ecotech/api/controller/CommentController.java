@@ -25,12 +25,21 @@ import com.ecotech.api.controller.mappers.CommentMapper;
 import com.ecotech.api.model.Comment;
 import com.ecotech.api.service.CommentService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import static com.ecotech.api.config.OpenApiConfiguration.BEARER_AUTH;
 
 @RestController
 @RequestMapping("/posts/{postId}/comments")
 @RequiredArgsConstructor
+@Tag(name = "Comments")
+@SecurityRequirement(name = BEARER_AUTH)
 public class CommentController implements GenericController {
 
     private final CommentService commentService;
@@ -38,6 +47,15 @@ public class CommentController implements GenericController {
 
     @PostMapping
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Cria um comentario em uma publicacao")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Comentario criado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Usuario ou publicacao nao encontrado"),
+            @ApiResponse(responseCode = "422", description = "Dados de entrada invalidos"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> create(
             @RequestBody @Valid CreateCommentDTO createCommentDTO,
             @PathVariable UUID postId,
@@ -66,6 +84,14 @@ public class CommentController implements GenericController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Lista comentarios de uma publicacao")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Comentarios listados"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Publicacao nao encontrada"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Page<CommentResponseDTO>> getCommentsByPostId(
             @PathVariable UUID postId,
             Pageable pageable) {
@@ -80,6 +106,14 @@ public class CommentController implements GenericController {
 
     @GetMapping("/count")
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Conta comentarios de uma publicacao")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Quantidade retornada"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Publicacao nao encontrada"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Long> countByPostId(
             @PathVariable UUID postId) {
 
@@ -91,6 +125,14 @@ public class CommentController implements GenericController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Busca um comentario por ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Comentario encontrado"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Comentario nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<CommentResponseDTO> getCommentById(
             @PathVariable UUID postId,
             @PathVariable UUID id) {
@@ -108,6 +150,16 @@ public class CommentController implements GenericController {
     @PreAuthorize(
         "hasRole('ADMIN') or @commentAuthorization.isOwner(#id, #postId, authentication)"
     )
+    @Operation(summary = "Atualiza um comentario")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Comentario atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "404", description = "Comentario nao encontrado"),
+            @ApiResponse(responseCode = "422", description = "Dados de entrada invalidos"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> update(
             @PathVariable UUID postId,
             @PathVariable UUID id,
@@ -130,6 +182,15 @@ public class CommentController implements GenericController {
     @PreAuthorize(
         "hasRole('ADMIN') or @commentAuthorization.isOwner(#id, #postId, authentication)"
     )
+    @Operation(summary = "Remove um comentario")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Comentario removido com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "404", description = "Comentario nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> delete(
             @PathVariable UUID postId,
             @PathVariable UUID id) {

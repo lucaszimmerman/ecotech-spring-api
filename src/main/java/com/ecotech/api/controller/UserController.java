@@ -28,18 +28,35 @@ import com.ecotech.api.controller.mappers.UserMapper;
 import com.ecotech.api.model.User;
 import com.ecotech.api.service.UserService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import static com.ecotech.api.config.OpenApiConfiguration.BEARER_AUTH;
 
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
+@Tag(name = "Users")
+@SecurityRequirement(name = BEARER_AUTH)
 public class UserController implements GenericController {
 
     private final UserService userService;
     private final UserMapper userMapper;
 
     @PostMapping
+    @Operation(summary = "Cria um usuario")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Usuario criado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "409", description = "Usuario ja cadastrado"),
+            @ApiResponse(responseCode = "422", description = "Dados de entrada invalidos"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> create(@RequestBody @Valid CreateUserDTO createUserDTO) {
         User user = userMapper.toEntity(createUserDTO);
         User savedUser = userService.save(user);
@@ -49,6 +66,15 @@ public class UserController implements GenericController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or #p0.toString() == authentication.name")
+    @Operation(summary = "Busca um usuario por ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Usuario encontrado"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "404", description = "Usuario nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<UserResponseDTO> findById(@PathVariable UUID id) {
         User user = userService.findById(id);
 
@@ -59,6 +85,13 @@ public class UserController implements GenericController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Lista usuarios")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Usuarios listados"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<List<UserResponseDTO>> findAll() {
 
         List<UserResponseDTO> users = userService
@@ -72,6 +105,17 @@ public class UserController implements GenericController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or #p0.toString() == authentication.name")
+    @Operation(summary = "Atualiza um usuario")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Usuario atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "404", description = "Usuario nao encontrado"),
+            @ApiResponse(responseCode = "409", description = "Usuario ja cadastrado"),
+            @ApiResponse(responseCode = "422", description = "Dados de entrada invalidos"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> update(@PathVariable UUID id, @RequestBody @Valid UpdateUserDTO updateUserDTO) {
         User user = userService.findById(id);
         userMapper.updateEntity(updateUserDTO, user);
@@ -81,6 +125,15 @@ public class UserController implements GenericController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or #p0.toString() == authentication.name")
+    @Operation(summary = "Remove um usuario")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Usuario removido com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "404", description = "Usuario nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
 
         User user = userService.findById(id);
@@ -91,6 +144,13 @@ public class UserController implements GenericController {
 
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Busca o usuario autenticado")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Usuario autenticado encontrado"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Usuario nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<UserResponseDTO> findAuthenticatedUser(
             Authentication authentication) {
 
@@ -104,6 +164,14 @@ public class UserController implements GenericController {
 
     @PatchMapping("/me/password")
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Altera a senha do usuario autenticado")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Senha alterada com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Usuario nao encontrado"),
+            @ApiResponse(responseCode = "422", description = "Dados de entrada invalidos"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> changePassword(
             @RequestBody @Valid ChangePasswordDTO changePasswordDTO,
             Authentication authentication) {
@@ -116,6 +184,14 @@ public class UserController implements GenericController {
 
     @PatchMapping("/me/profile-image")
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Atualiza a imagem de perfil do usuario autenticado")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Imagem de perfil atualizada"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Usuario nao encontrado"),
+            @ApiResponse(responseCode = "422", description = "Arquivo invalido"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> updateProfileImage(
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {
@@ -129,6 +205,14 @@ public class UserController implements GenericController {
 
     @PatchMapping("/me/cover-image")
     @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Atualiza a imagem de capa do usuario autenticado")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Imagem de capa atualizada"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Usuario nao encontrado"),
+            @ApiResponse(responseCode = "422", description = "Arquivo invalido"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
     public ResponseEntity<Void> updateCoverImage(
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {

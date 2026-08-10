@@ -14,15 +14,18 @@ import com.ecotech.api.model.enums.UserRole;
 import com.ecotech.api.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GoogleAuthenticationService {
 
     private final UserRepository userRepository;
 
     @Transactional
     public User authenticate(OidcUser oidcUser) {
+        log.debug("Iniciando autenticacao Google.");
 
         String providerId = oidcUser.getSubject();
         String email = oidcUser.getEmail();
@@ -41,13 +44,14 @@ public class GoogleAuthenticationService {
                         AuthProvider.GOOGLE,
                         providerId
                 )
-                .orElseGet(() ->
-                        createGoogleUser(
-                                providerId,
-                                email,
-                                name
-                        )
-                );
+                .map(user -> {
+                    log.info("Login Google concluido para usuario existente. userId={}", user.getId());
+                    return user;
+                })
+                .orElseGet(() -> createGoogleUser(
+                        providerId,
+                        email,
+                        name));
     }
 
     private User createGoogleUser(
@@ -59,6 +63,10 @@ public class GoogleAuthenticationService {
         userRepository
                 .findByEmailIgnoreCase(email)
                 .ifPresent(existingUser -> {
+                    log.warn(
+                            "Login Google recusado por email ja associado a conta local. userId={}",
+                            existingUser.getId()
+                    );
 
                     throw new OperacaoNaoPermitidaException(
                             "Ja existe uma conta associada a este email."
@@ -94,7 +102,11 @@ public class GoogleAuthenticationService {
         user.setActive(true);
         user.setRole(UserRole.USER);
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+
+        log.info("Usuario Google criado com sucesso. userId={}", savedUser.getId());
+
+        return savedUser;
     }
 
     private void validateGoogleUser(
@@ -104,18 +116,21 @@ public class GoogleAuthenticationService {
     ) {
 
         if (!StringUtils.hasText(providerId)) {
+            log.warn("Login Google recusado: providerId ausente.");
             throw new OperacaoNaoPermitidaException(
                     "Nao foi possivel identificar a conta Google."
             );
         }
 
         if (!StringUtils.hasText(email)) {
+            log.warn("Login Google recusado: email ausente.");
             throw new OperacaoNaoPermitidaException(
                     "A conta Google nao forneceu um email."
             );
         }
 
         if (!Boolean.TRUE.equals(emailVerified)) {
+            log.warn("Login Google recusado: email nao verificado.");
             throw new OperacaoNaoPermitidaException(
                     "O email da conta Google nao esta verificado."
             );

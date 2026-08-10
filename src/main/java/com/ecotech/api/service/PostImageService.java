@@ -7,9 +7,11 @@ import com.ecotech.api.exceptions.CampoInvalidoException;
 import com.ecotech.api.model.Post;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PostImageService {
 
     private static final String POST_IMAGE_PREFIX = "posts/";
@@ -22,6 +24,7 @@ public class PostImageService {
         }
 
         post.setImageUrl(imageStorageService.upload(file, imagePrefix(post)));
+        log.info("Imagem associada ao post. postId={}, imageKey={}", post.getId(), post.getImageUrl());
     }
 
     public String prepareImageUpdate(
@@ -44,11 +47,13 @@ public class PostImageService {
     public void deleteImage(String imageUrl) {
         if (imageUrl != null && !imageUrl.isBlank()) {
             imageStorageService.delete(imageUrl);
+            log.info("Imagem de post removida. imageKey={}", imageUrl);
         }
     }
 
     private void validateImageUpdate(MultipartFile file, boolean removeImage) {
         if (removeImage && hasFile(file)) {
+            log.warn("Atualizacao de imagem de post recusada: removeImage e arquivo enviados juntos.");
             throw new CampoInvalidoException(
                     "removeImage",
                     "Nao e permitido remover e enviar uma nova imagem na mesma requisicao.");
@@ -61,6 +66,8 @@ public class PostImageService {
 
         post.setImageUrl(newImageUrl);
 
+        log.info("Imagem de post substituida. postId={}, newImageKey={}", post.getId(), newImageUrl);
+
         return previousImageUrl;
     }
 
@@ -68,6 +75,8 @@ public class PostImageService {
         String previousImageUrl = post.getImageUrl();
 
         post.setImageUrl(null);
+
+        log.info("Imagem de post marcada para remocao. postId={}", post.getId());
 
         return previousImageUrl;
     }

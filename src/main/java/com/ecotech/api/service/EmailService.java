@@ -72,10 +72,11 @@ public class EmailService {
         try {
             sesClient.sendEmail(request);
         } catch (SesV2Exception e) {
-            log.warn(
+            log.error(
                     "Falha ao enviar email de verificacao pelo SES. awsErrorCode={}, statusCode={}",
                     e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null,
-                    e.statusCode());
+                    e.statusCode(),
+                    e);
 
             throw new EmailDeliveryException(
                     "Nao foi possivel enviar o email de verificacao.",
@@ -130,10 +131,11 @@ public class EmailService {
         try {
             sesClient.sendEmail(request);
         } catch (SesV2Exception e) {
-            log.warn(
+            log.error(
                     "Falha ao enviar email de recuperacao de senha pelo SES. awsErrorCode={}, statusCode={}",
                     e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null,
-                    e.statusCode());
+                    e.statusCode(),
+                    e);
 
             throw new EmailDeliveryException(
                     "Nao foi possivel enviar o email de recuperacao de senha.",
