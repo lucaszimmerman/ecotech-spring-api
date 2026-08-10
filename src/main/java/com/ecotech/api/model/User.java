@@ -73,6 +73,9 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -85,6 +88,9 @@ public class User {
     private void prePersist() {
         if (role == null) {
             role = UserRole.USER;
+        }
+        if (emailVerified == null) {
+            emailVerified = false;
         }
     }
 }

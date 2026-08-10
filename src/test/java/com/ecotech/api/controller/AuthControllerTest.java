@@ -1,9 +1,12 @@
 package com.ecotech.api.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -28,6 +31,7 @@ import com.ecotech.api.controller.dto.auth.LoginResponseDTO;
 import com.ecotech.api.exceptions.RegistroDuplicadoException;
 import com.ecotech.api.model.enums.UserRole;
 import com.ecotech.api.service.AuthenticationService;
+import com.ecotech.api.service.EmailVerificationService;
 import com.ecotech.api.support.TestJwtProperties;
 
 @SpringBootTest
@@ -45,6 +49,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private AuthenticationService authenticationService;
+
+    @MockitoBean
+    private EmailVerificationService emailVerificationService;
 
     @MockitoBean
     private AuthenticationProvider authenticationProvider;
@@ -127,5 +134,39 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.status").value(409));
 
         verify(authenticationService).register(any(CreateUserDTO.class));
+    }
+
+    @Test
+    void shouldVerifyEmailWithoutJwt() throws Exception {
+        String token = "verification-token";
+
+        doNothing().when(emailVerificationService).verifyEmail(token);
+
+        mockMvc.perform(get("/auth/verify-email")
+                        .param("token", token))
+                .andExpect(status().isOk());
+
+        verify(emailVerificationService).verifyEmail(token);
+    }
+
+    @Test
+    void shouldRejectResendVerificationWithoutJwt() throws Exception {
+        mockMvc.perform(post("/auth/resend-verification"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(emailVerificationService);
+    }
+
+    @Test
+    void shouldResendVerificationWithJwt() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        doNothing().when(emailVerificationService).resendVerification(userId);
+
+        mockMvc.perform(post("/auth/resend-verification")
+                        .with(jwt().jwt(jwt -> jwt.subject(userId.toString()))))
+                .andExpect(status().isNoContent());
+
+        verify(emailVerificationService).resendVerification(userId);
     }
 }

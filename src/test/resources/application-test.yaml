@@ -20,3 +20,9 @@ aws:
   s3:
     bucket-name: ecotech-test
     region: us-east-1
+  ses:
+    from-email: no-reply@ecotech.test
+    region: us-east-1
+
+app:
+  base-url: http://localhost:8080

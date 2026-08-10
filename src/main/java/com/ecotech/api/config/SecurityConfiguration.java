@@ -38,6 +38,7 @@ public class SecurityConfiguration {
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                                                .requestMatchers(HttpMethod.GET, "/auth/verify-email").permitAll()
                                                 .anyRequest().authenticated())
                                 .exceptionHandling(exceptions -> exceptions
                                                 .authenticationEntryPoint(

@@ -4,13 +4,17 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
+import com.ecotech.api.config.AppProperties;
 import com.ecotech.api.config.JwtProperties;
 import com.ecotech.api.config.aws.AwsS3Properties;
+import com.ecotech.api.config.aws.AwsSesProperties;
 
 @SpringBootApplication
 @EnableConfigurationProperties({
 	JwtProperties.class,
-	AwsS3Properties.class
+	AwsS3Properties.class,
+	AwsSesProperties.class,
+	AppProperties.class
 })
 public class EcotechApiApplication {
 

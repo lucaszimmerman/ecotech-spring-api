@@ -41,6 +41,9 @@ class AuthenticationServiceTest {
     @Mock
     private UserMapper userMapper;
 
+    @Mock
+    private EmailVerificationService emailVerificationService;
+
     @InjectMocks
     private AuthenticationService service;
 
@@ -87,6 +90,7 @@ class AuthenticationServiceTest {
 
         verify(userMapper).toEntity(dto);
         verify(userService).save(user);
+        verify(emailVerificationService).sendVerification(savedUser);
         ArgumentCaptor<UserPrincipal> principalCaptor =
                 ArgumentCaptor.forClass(UserPrincipal.class);
 

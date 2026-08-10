@@ -24,6 +24,7 @@ public interface UserMapper {
     @Mapping(target = "role", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "website", ignore = true)
+    @Mapping(target = "emailVerified", ignore = true)
     User toEntity(CreateUserDTO createUserDTO);
 
     UserResponseDTO toResponseDTO(User user);
@@ -37,6 +38,7 @@ public interface UserMapper {
     @Mapping(target = "role", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "emailVerified", ignore = true)
     void updateEntity(
         UpdateUserDTO dto,
         @MappingTarget User user

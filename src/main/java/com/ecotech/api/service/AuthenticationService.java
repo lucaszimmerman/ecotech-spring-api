@@ -4,6 +4,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.ecotech.api.config.JwtProperties;
 import com.ecotech.api.controller.dto.CreateUserDTO;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AuthenticationService {
 
+        private final EmailVerificationService emailVerificationService;
         private final AuthenticationManager authenticationManager;
         private final JwtService jwtService;
         private final JwtProperties jwtProperties;
@@ -39,11 +41,14 @@ public class AuthenticationService {
                 return toLoginResponse(principal, accessToken);
         }
 
+        @Transactional
         public LoginResponseDTO register(CreateUserDTO dto) {
 
                 User user = userMapper.toEntity(dto);
 
                 User savedUser = userService.save(user);
+
+                emailVerificationService.sendVerification(savedUser);
 
                 UserPrincipal principal = new UserPrincipal(savedUser);
 
