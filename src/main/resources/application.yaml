@@ -1,4 +1,7 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   application:
     name: ecotech-api
 
@@ -24,8 +27,19 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 6MB
-        
-        
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - openid
+              - profile
+              - email
+
 security:
   jwt:
     secret-key: ${JWT_SECRET_KEY}

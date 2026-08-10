@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.ecotech.api.model.User;
+import com.ecotech.api.model.enums.AuthProvider;
 
 public interface UserRepository extends JpaRepository<User, UUID>{
 
@@ -14,4 +15,8 @@ public interface UserRepository extends JpaRepository<User, UUID>{
     boolean existsByUsernameIgnoreCase(String username);
     boolean existsByEmailIgnoreCase(String email);
     boolean existsByUsernameIgnoreCaseAndIdNot(String username,UUID id);
+    Optional<User> findByAuthProviderAndProviderId(
+        AuthProvider authProvider,
+        String providerId
+);
 }
