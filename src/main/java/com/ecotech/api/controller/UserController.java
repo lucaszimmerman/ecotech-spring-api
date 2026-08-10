@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.ecotech.api.controller.common.GenericController;
+import com.ecotech.api.controller.dto.ChangePasswordDTO;
 import com.ecotech.api.controller.dto.CreateUserDTO;
 import com.ecotech.api.controller.dto.UpdateUserDTO;
 import com.ecotech.api.controller.dto.UserResponseDTO;
@@ -99,6 +100,18 @@ public class UserController implements GenericController {
                 userService.findById(userId));
 
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/me/password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> changePassword(
+            @RequestBody @Valid ChangePasswordDTO changePasswordDTO,
+            Authentication authentication) {
+        UUID authenticatedUserId = UUID.fromString(authentication.getName());
+
+        userService.changePassword(authenticatedUserId, changePasswordDTO);
+
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/me/profile-image")
