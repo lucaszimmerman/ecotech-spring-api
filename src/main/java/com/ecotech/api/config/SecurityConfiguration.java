@@ -43,7 +43,8 @@ public class SecurityConfiguration {
         };
 
         private static final String[] PUBLIC_GET_ENDPOINTS = {
-                        "/auth/verify-email"
+                        "/auth/verify-email",
+                        "/images/**"
         };
 
         private final AuthenticationProvider authenticationProvider;

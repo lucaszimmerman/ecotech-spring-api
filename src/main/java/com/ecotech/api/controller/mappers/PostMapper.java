@@ -9,7 +9,10 @@ import com.ecotech.api.controller.dto.PostResponseDTO;
 import com.ecotech.api.controller.dto.UpdatePostDTO;
 import com.ecotech.api.model.Post;
 
-@Mapper(componentModel = "spring", uses = UserMapper.class)
+@Mapper(componentModel = "spring", uses = {
+        UserMapper.class,
+        ImageUrlMapper.class
+})
 public interface PostMapper {
 
     @Mapping(target = "id", ignore = true)
@@ -19,6 +22,7 @@ public interface PostMapper {
     @Mapping(target = "updatedAt", ignore = true)
     Post toEntity(CreatePostDTO createPostDTO);
 
+    @Mapping(target = "imageUrl", source = "imageUrl", qualifiedByName = "toPublicImageUrl")
     PostResponseDTO toResponseDTO(Post post);
 
     @Mapping(target = "id", ignore = true)

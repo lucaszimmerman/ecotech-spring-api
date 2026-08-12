@@ -1,22 +1,21 @@
 package com.ecotech.api.service;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.ecotech.api.config.aws.AwsS3Properties;
+import com.ecotech.api.config.AppStorageProperties;
 import com.ecotech.api.exceptions.CampoInvalidoException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @Service
 @RequiredArgsConstructor
@@ -31,8 +30,7 @@ public class ImageStorageService {
             "image/webp"
     );
 
-    private final S3Client s3Client;
-    private final AwsS3Properties properties;
+    private final AppStorageProperties storageProperties;
 
     public String upload(
         MultipartFile file,
@@ -47,25 +45,24 @@ public class ImageStorageService {
                 + "/"
                 + UUID.randomUUID()
                 + extension;
+        Path uploadRoot = storageProperties.uploadPath();
+        Path target = resolveInsideUploadRoot(uploadRoot, key);
 
         try {
             log.debug(
-                    "Iniciando upload de imagem no S3. key={}, contentType={}, size={}",
+                    "Iniciando upload de imagem no filesystem local. key={}, contentType={}, size={}",
                     key,
                     file.getContentType(),
                     file.getSize()
             );
 
-            PutObjectRequest request =
-                   PutObjectRequest.builder()
-                            .bucket(properties.bucketName())
-                            .key(key)
-                            .contentType(file.getContentType())
-                            .build();
-            
-            s3Client.putObject(request, RequestBody.fromBytes(file.getBytes())
-        );
-            log.info("Upload de imagem no S3 concluido. key={}", key);
+            Files.createDirectories(target.getParent());
+
+            try (InputStream inputStream = file.getInputStream()) {
+                Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            log.info("Upload de imagem no filesystem local concluido. key={}", key);
 
             return key;
         } catch (IOException e) {
@@ -74,15 +71,6 @@ public class ImageStorageService {
                     "Erro ao processar a imagem.",
                     e
             );
-        } catch (S3Exception e) {
-            log.error(
-                    "Falha no upload de imagem para o S3. key={}, awsErrorCode={}, statusCode={}",
-                    key,
-                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null,
-                    e.statusCode(),
-                    e
-            );
-            throw e;
         }
     }
 
@@ -92,24 +80,18 @@ public class ImageStorageService {
             return;
         }
 
-        DeleteObjectRequest request =
-                DeleteObjectRequest.builder()
-                        .bucket(properties.bucketName())
-                        .key(key)
-                        .build();
+        Path uploadRoot = storageProperties.uploadPath();
+        Path target = resolveInsideUploadRoot(uploadRoot, key);
 
         try {
-            s3Client.deleteObject(request);
-            log.info("Imagem removida do S3. key={}", key);
-        } catch (S3Exception e) {
-            log.error(
-                    "Falha ao remover imagem do S3. key={}, awsErrorCode={}, statusCode={}",
-                    key,
-                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null,
-                    e.statusCode(),
+            Files.deleteIfExists(target);
+            log.info("Imagem removida do filesystem local. key={}", key);
+        } catch (IOException e) {
+            log.error("Falha ao remover imagem do filesystem local. key={}", key, e);
+            throw new RuntimeException(
+                    "Erro ao remover a imagem.",
                     e
             );
-            throw e;
         }
     }
 
@@ -153,5 +135,20 @@ public class ImageStorageService {
             case "image/webp" -> ".webp";
             default -> "";
         };
+    }
+
+    private Path resolveInsideUploadRoot(Path uploadRoot, String relativePath) {
+        Path target = uploadRoot.resolve(relativePath)
+                .normalize();
+
+        if (!target.startsWith(uploadRoot)) {
+            log.warn("Caminho de imagem recusado por path traversal. path={}", relativePath);
+            throw new CampoInvalidoException(
+                    "file",
+                    "Caminho de armazenamento invalido."
+            );
+        }
+
+        return target;
     }
 }

@@ -29,16 +29,14 @@ security:
     issuer: ecotech-api
 
 aws:
-  s3:
-    bucket-name: ${AWS_S3_BUCKET_NAME}
-    region: ${AWS_REGION}
-
   ses:
     from-email: ${AWS_SES_FROM_EMAIL}
     region: ${AWS_REGION}
 
 app:
   base-url: ${APP_BASE_URL}
+  storage:
+    upload-dir: ${UPLOAD_DIR:uploads}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS}

@@ -11,7 +11,7 @@ import com.ecotech.api.controller.dto.UserSummaryDTO;
 import com.ecotech.api.model.User;
 
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = ImageUrlMapper.class)
 public interface UserMapper {
 
     @Mapping(target = "active", ignore = true)
@@ -27,8 +27,11 @@ public interface UserMapper {
     @Mapping(target = "emailVerified", ignore = true)
     User toEntity(CreateUserDTO createUserDTO);
 
+    @Mapping(target = "profileImageUrl", source = "profileImageUrl", qualifiedByName = "toPublicImageUrl")
+    @Mapping(target = "coverImageUrl", source = "coverImageUrl", qualifiedByName = "toPublicImageUrl")
     UserResponseDTO toResponseDTO(User user);
 
+    @Mapping(target = "profileImageUrl", source = "profileImageUrl", qualifiedByName = "toPublicImageUrl")
     UserSummaryDTO toSummaryDTO(User user);
     
     @Mapping(target = "id", ignore = true)

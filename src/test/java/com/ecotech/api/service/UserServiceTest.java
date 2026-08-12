@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.mock.web.MockMultipartFile;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -150,5 +151,107 @@ class UserServiceTest {
         verify(repository).findById(userId);
         verify(repository, never()).save(user);
         verifyNoInteractions(validator, imageStorageService);
+    }
+
+    @Test
+    void shouldUploadProfileImage() {
+        UUID userId = UUID.randomUUID();
+        User user = createUser(userId, "password");
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "profile.png",
+                "image/png",
+                "image".getBytes());
+        String newImageKey = "users/" + userId + "/profile/new.png";
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+        when(imageStorageService.upload(file, "users/" + userId + "/profile"))
+                .thenReturn(newImageKey);
+
+        service.updateProfileImage(userId, file);
+
+        assertThat(user.getProfileImageUrl()).isEqualTo(newImageKey);
+        verify(repository).save(user);
+        verify(imageStorageService).upload(file, "users/" + userId + "/profile");
+        verify(imageStorageService, never()).delete(org.mockito.ArgumentMatchers.anyString());
+        verifyNoInteractions(validator);
+    }
+
+    @Test
+    void shouldReplaceProfileImageAndDeletePreviousImage() {
+        UUID userId = UUID.randomUUID();
+        User user = createUser(userId, "password");
+        user.setProfileImageUrl("users/" + userId + "/profile/old.png");
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "profile.png",
+                "image/png",
+                "image".getBytes());
+        String newImageKey = "users/" + userId + "/profile/new.png";
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+        when(imageStorageService.upload(file, "users/" + userId + "/profile"))
+                .thenReturn(newImageKey);
+
+        service.updateProfileImage(userId, file);
+
+        assertThat(user.getProfileImageUrl()).isEqualTo(newImageKey);
+        verify(repository).save(user);
+        verify(imageStorageService).upload(file, "users/" + userId + "/profile");
+        verify(imageStorageService).delete("users/" + userId + "/profile/old.png");
+        verifyNoInteractions(validator);
+    }
+
+    @Test
+    void shouldUploadCoverImage() {
+        UUID userId = UUID.randomUUID();
+        User user = createUser(userId, "password");
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "cover.webp",
+                "image/webp",
+                "image".getBytes());
+        String newImageKey = "users/" + userId + "/cover/new.webp";
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+        when(imageStorageService.upload(file, "users/" + userId + "/cover"))
+                .thenReturn(newImageKey);
+
+        service.updateCoverImage(userId, file);
+
+        assertThat(user.getCoverImageUrl()).isEqualTo(newImageKey);
+        verify(repository).save(user);
+        verify(imageStorageService).upload(file, "users/" + userId + "/cover");
+        verify(imageStorageService, never()).delete(org.mockito.ArgumentMatchers.anyString());
+        verifyNoInteractions(validator);
+    }
+
+    @Test
+    void shouldReplaceCoverImageAndDeletePreviousImage() {
+        UUID userId = UUID.randomUUID();
+        User user = createUser(userId, "password");
+        user.setCoverImageUrl("users/" + userId + "/cover/old.webp");
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "cover.webp",
+                "image/webp",
+                "image".getBytes());
+        String newImageKey = "users/" + userId + "/cover/new.webp";
+
+        when(repository.findById(userId))
+                .thenReturn(Optional.of(user));
+        when(imageStorageService.upload(file, "users/" + userId + "/cover"))
+                .thenReturn(newImageKey);
+
+        service.updateCoverImage(userId, file);
+
+        assertThat(user.getCoverImageUrl()).isEqualTo(newImageKey);
+        verify(repository).save(user);
+        verify(imageStorageService).upload(file, "users/" + userId + "/cover");
+        verify(imageStorageService).delete("users/" + userId + "/cover/old.webp");
+        verifyNoInteractions(validator);
     }
 }
