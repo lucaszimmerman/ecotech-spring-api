@@ -4,7 +4,6 @@ import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -16,8 +15,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import com.ecotech.api.security.GoogleOAuth2FailureHandler;
-import com.ecotech.api.security.GoogleOAuth2SuccessHandler;
 import com.ecotech.api.security.SecurityExceptionHandler;
 
 import lombok.RequiredArgsConstructor;
@@ -52,36 +49,9 @@ public class SecurityConfiguration {
         private final AuthenticationProvider authenticationProvider;
         private final JwtAuthenticationConverter jwtAuthenticationConverter;
         private final SecurityExceptionHandler securityExceptionHandler;
-        private final GoogleOAuth2SuccessHandler googleOAuth2SuccessHandler;
-        private final GoogleOAuth2FailureHandler googleOAuth2FailureHandler;
         private final CorsProperties corsProperties;
 
         @Bean
-        @Order(1)
-        SecurityFilterChain oauth2SecurityFilterChain(HttpSecurity http) throws Exception {
-
-                return http
-                                .securityMatcher("/oauth2/**", "/login/oauth2/**")
-                                .csrf(csrf -> csrf.disable())
-                                .sessionManagement(session -> session
-                                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-                                .authorizeHttpRequests(auth -> auth
-                                                .anyRequest().permitAll())
-                                .exceptionHandling(exceptions -> exceptions
-                                                .authenticationEntryPoint(
-                                                                securityExceptionHandler)
-                                                .accessDeniedHandler(
-                                                                securityExceptionHandler))
-                                .oauth2Login(oauth2 -> oauth2
-                                                .successHandler(
-                                                                googleOAuth2SuccessHandler)
-                                                .failureHandler(
-                                                                googleOAuth2FailureHandler))
-                                .build();
-        }
-
-        @Bean
-        @Order(2)
         SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
 
                 return http

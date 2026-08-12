@@ -5,7 +5,6 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -25,7 +24,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.ecotech.api.controller.dto.CreateUserDTO;
@@ -225,18 +223,6 @@ class AuthControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(passwordRecoveryService).resetPassword(any(ResetPasswordDTO.class));
-    }
-
-    @Test
-    void shouldStartGoogleOAuthFlowWithSessionState() throws Exception {
-        MvcResult result = mockMvc.perform(get("/oauth2/authorization/google"))
-                .andExpect(status().is3xxRedirection())
-                .andReturn();
-
-        assertThat(result.getResponse().getRedirectedUrl())
-                .startsWith("https://accounts.google.com/o/oauth2/v2/auth?");
-        assertThat(result.getRequest().getSession(false))
-                .isNotNull();
     }
 
     @Test

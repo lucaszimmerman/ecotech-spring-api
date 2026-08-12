@@ -12,18 +12,6 @@ spring:
     hibernate:
       ddl-auto: create-drop
 
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: test-google-client-id
-            client-secret: test-google-client-secret
-            scope:
-              - openid
-              - profile
-              - email
-
 security:
   jwt:
     issuer: ecotech-api
