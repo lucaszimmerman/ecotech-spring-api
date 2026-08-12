@@ -27,6 +27,7 @@ spring:
 security:
   jwt:
     issuer: ecotech-api
+    expiration: 3600
 
 aws:
   s3:
@@ -38,3 +39,7 @@ aws:
 
 app:
   base-url: http://localhost:8080
+
+cors:
+  allowed-origins:
+    - http://localhost:3000

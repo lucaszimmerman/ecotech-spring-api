@@ -21,6 +21,7 @@ import com.ecotech.api.service.AuthenticationService;
 import com.ecotech.api.service.EmailVerificationService;
 import com.ecotech.api.service.PasswordRecoveryService;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,6 +36,7 @@ import static com.ecotech.api.config.OpenApiConfiguration.BEARER_AUTH;
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 @Tag(name = "Authentication")
+@Hidden
 public class AuthController {
 
     private final AuthenticationService authenticationService;

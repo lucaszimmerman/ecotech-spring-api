@@ -28,6 +28,7 @@ import com.ecotech.api.controller.mappers.UserMapper;
 import com.ecotech.api.model.User;
 import com.ecotech.api.service.UserService;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,6 +44,7 @@ import static com.ecotech.api.config.OpenApiConfiguration.BEARER_AUTH;
 @RequiredArgsConstructor
 @Tag(name = "Users")
 @SecurityRequirement(name = BEARER_AUTH)
+@Hidden
 public class UserController implements GenericController {
 
     private final UserService userService;
