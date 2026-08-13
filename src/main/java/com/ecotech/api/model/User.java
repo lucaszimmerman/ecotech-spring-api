@@ -90,7 +90,7 @@ public class User {
             role = UserRole.USER;
         }
         if (emailVerified == null) {
-            emailVerified = false;
+            emailVerified = true;
         }
     }
 }

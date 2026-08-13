@@ -17,11 +17,6 @@ security:
     issuer: ecotech-api
     expiration: 3600
 
-aws:
-  ses:
-    from-email: no-reply@ecotech.test
-    region: us-east-1
-
 app:
   base-url: http://localhost:8080
   storage:

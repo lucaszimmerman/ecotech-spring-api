@@ -22,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AuthenticationService {
 
-        private final EmailVerificationService emailVerificationService;
         private final AuthenticationManager authenticationManager;
         private final JwtService jwtService;
         private final JwtProperties jwtProperties;
@@ -54,8 +53,6 @@ public class AuthenticationService {
                 User user = userMapper.toEntity(dto);
 
                 User savedUser = userService.save(user);
-
-                emailVerificationService.sendVerification(savedUser);
 
                 UserPrincipal principal = new UserPrincipal(savedUser);
 

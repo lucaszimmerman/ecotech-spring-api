@@ -37,13 +37,10 @@ public class SecurityConfiguration {
 
         private static final String[] PUBLIC_POST_ENDPOINTS = {
                         "/auth/register",
-                        "/auth/login",
-                        "/auth/forgot-password",
-                        "/auth/reset-password"
+                        "/auth/login"
         };
 
         private static final String[] PUBLIC_GET_ENDPOINTS = {
-                        "/auth/verify-email",
                         "/images/**"
         };
 

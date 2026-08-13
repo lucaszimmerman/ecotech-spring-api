@@ -16,7 +16,6 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import com.ecotech.api.controller.dto.ErroCampo;
 import com.ecotech.api.controller.dto.ErroResposta;
 import com.ecotech.api.exceptions.CampoInvalidoException;
-import com.ecotech.api.exceptions.EmailDeliveryException;
 import com.ecotech.api.exceptions.OperacaoNaoPermitidaException;
 import com.ecotech.api.exceptions.RegistroDuplicadoException;
 import com.ecotech.api.exceptions.RegistroNaoEncontradoException;
@@ -123,18 +122,6 @@ public class GlobalExceptionHandler {
         return new ErroResposta(
                 HttpStatus.CONTENT_TOO_LARGE.value(),
                 "O arquivo enviado excede o tamanho máximo permitido.",
-                List.of());
-    }
-
-    @ExceptionHandler(EmailDeliveryException.class)
-    @ResponseStatus(HttpStatus.BAD_GATEWAY)
-    public ErroResposta handleEmailDeliveryException(
-            EmailDeliveryException e) {
-        log.warn("Falha conhecida no envio de email: {}", e.getMessage());
-
-        return new ErroResposta(
-                HttpStatus.BAD_GATEWAY.value(),
-                e.getMessage(),
                 List.of());
     }
 

@@ -1,12 +1,10 @@
 package com.ecotech.api.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -15,6 +13,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
@@ -25,16 +24,12 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import com.ecotech.api.controller.dto.CreateUserDTO;
-import com.ecotech.api.controller.dto.auth.ForgotPasswordDTO;
 import com.ecotech.api.controller.dto.auth.LoginResponseDTO;
-import com.ecotech.api.controller.dto.auth.ResetPasswordDTO;
 import com.ecotech.api.exceptions.RegistroDuplicadoException;
 import com.ecotech.api.model.enums.UserRole;
-import com.ecotech.api.service.AuthenticationService;
-import com.ecotech.api.service.EmailVerificationService;
-import com.ecotech.api.service.PasswordRecoveryService;
 import com.ecotech.api.support.TestJwtProperties;
 
 @SpringBootTest
@@ -50,20 +45,49 @@ class AuthControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
-    private AuthenticationService authenticationService;
+    @Autowired
+    @Qualifier("requestMappingHandlerMapping")
+    private RequestMappingHandlerMapping handlerMapping;
 
     @MockitoBean
-    private EmailVerificationService emailVerificationService;
-
-    @MockitoBean
-    private PasswordRecoveryService passwordRecoveryService;
+    private com.ecotech.api.service.AuthenticationService authenticationService;
 
     @MockitoBean
     private AuthenticationProvider authenticationProvider;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
+
+    @Test
+    void shouldLoginUserWithoutJwt() throws Exception {
+        UUID userId = UUID.randomUUID();
+        LoginResponseDTO response = new LoginResponseDTO(
+                userId,
+                "lucas",
+                "Lucas Zimmerman",
+                UserRole.USER,
+                "access-token",
+                "Bearer",
+                3600L);
+
+        when(authenticationService.login(any()))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "lucas",
+                                  "password": "123456"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(userId.toString()))
+                .andExpect(jsonPath("$.username").value("lucas"))
+                .andExpect(jsonPath("$.accessToken").value("access-token"));
+
+        verify(authenticationService).login(any());
+    }
 
     @Test
     void shouldRegisterUserWithoutJwt() throws Exception {
@@ -143,102 +167,19 @@ class AuthControllerTest {
     }
 
     @Test
-    void shouldVerifyEmailWithoutJwt() throws Exception {
-        String token = "verification-token";
+    void shouldNotRegisterEmailDependentAuthEndpoints() {
+        var mappings = handlerMapping.getHandlerMethods()
+                .keySet()
+                .stream()
+                .map(Object::toString)
+                .toList();
 
-        doNothing().when(emailVerificationService).verifyEmail(token);
+        assertThat(mappings)
+                .noneMatch(mapping -> mapping.contains("/auth/verify-email"))
+                .noneMatch(mapping -> mapping.contains("/auth/resend-verification"))
+                .noneMatch(mapping -> mapping.contains("/auth/forgot-password"))
+                .noneMatch(mapping -> mapping.contains("/auth/reset-password"));
 
-        mockMvc.perform(get("/auth/verify-email")
-                        .param("token", token))
-                .andExpect(status().isOk());
-
-        verify(emailVerificationService).verifyEmail(token);
-    }
-
-    @Test
-    void shouldRejectResendVerificationWithoutJwt() throws Exception {
-        mockMvc.perform(post("/auth/resend-verification"))
-                .andExpect(status().isUnauthorized());
-
-        verifyNoInteractions(emailVerificationService);
-    }
-
-    @Test
-    void shouldResendVerificationWithJwt() throws Exception {
-        UUID userId = UUID.randomUUID();
-
-        doNothing().when(emailVerificationService).resendVerification(userId);
-
-        mockMvc.perform(post("/auth/resend-verification")
-                        .with(jwt().jwt(jwt -> jwt.subject(userId.toString()))))
-                .andExpect(status().isNoContent());
-
-        verify(emailVerificationService).resendVerification(userId);
-    }
-
-    @Test
-    void shouldRequestPasswordResetWithoutJwt() throws Exception {
-        doNothing().when(passwordRecoveryService).requestPasswordReset("lucas@email.com");
-
-        mockMvc.perform(post("/auth/forgot-password")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "lucas@email.com"
-                                }
-                                """))
-                .andExpect(status().isNoContent());
-
-        verify(passwordRecoveryService).requestPasswordReset("lucas@email.com");
-    }
-
-    @Test
-    void shouldReturnUnprocessableEntityWhenForgotPasswordPayloadIsInvalid() throws Exception {
-        mockMvc.perform(post("/auth/forgot-password")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "email-invalido"
-                                }
-                                """))
-                .andExpect(status().isUnprocessableContent())
-                .andExpect(jsonPath("$.status").value(422));
-
-        verifyNoInteractions(passwordRecoveryService);
-    }
-
-    @Test
-    void shouldResetPasswordWithoutJwt() throws Exception {
-        doNothing().when(passwordRecoveryService).resetPassword(any(ResetPasswordDTO.class));
-
-        mockMvc.perform(post("/auth/reset-password")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "token": "reset-token",
-                                  "newPassword": "123456",
-                                  "confirmPassword": "123456"
-                                }
-                                """))
-                .andExpect(status().isNoContent());
-
-        verify(passwordRecoveryService).resetPassword(any(ResetPasswordDTO.class));
-    }
-
-    @Test
-    void shouldReturnUnprocessableEntityWhenResetPasswordPayloadIsInvalid() throws Exception {
-        mockMvc.perform(post("/auth/reset-password")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "token": "",
-                                  "newPassword": "123",
-                                  "confirmPassword": ""
-                                }
-                                """))
-                .andExpect(status().isUnprocessableContent())
-                .andExpect(jsonPath("$.status").value(422));
-
-        verifyNoInteractions(passwordRecoveryService);
+        verifyNoInteractions(authenticationService);
     }
 }

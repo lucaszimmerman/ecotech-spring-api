@@ -143,6 +143,7 @@ public class UserService {
         user.setUsername(user.getUsername().trim());
         user.setEmail(user.getEmail().trim().toLowerCase());
         user.setName(user.getName().trim());
+        user.setEmailVerified(true);
     }
 
     private void normalizeForUpdate(User user) {

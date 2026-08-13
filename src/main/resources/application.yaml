@@ -28,11 +28,6 @@ security:
     expiration: ${JWT_EXPIRATION}
     issuer: ecotech-api
 
-aws:
-  ses:
-    from-email: ${AWS_SES_FROM_EMAIL}
-    region: ${AWS_REGION}
-
 app:
   base-url: ${APP_BASE_URL}
   storage:
