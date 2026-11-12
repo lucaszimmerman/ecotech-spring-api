@@ -4,6 +4,7 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 .env
+/ecotech-spring-api/
 
 ### STS ###
 .apt_generated
