@@ -93,9 +93,9 @@ public class AuthController {
     }
 
     @PostMapping("/resend-verification")
-    @Operation(summary = "Reenvia o email de verificacao", security = @SecurityRequirement(name = BEARER_AUTH))
+    @Operation(summary = "Envia ou reenvia o email de verificacao", security = @SecurityRequirement(name = BEARER_AUTH))
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Email de verificacao reenviado"),
+            @ApiResponse(responseCode = "204", description = "Email de verificacao enviado"),
             @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
             @ApiResponse(responseCode = "404", description = "Usuario nao encontrado"),
             @ApiResponse(responseCode = "422", description = "Email ja verificado"),

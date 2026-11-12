@@ -48,7 +48,7 @@ class AuthenticationServiceTest {
     private AuthenticationService service;
 
     @Test
-    void shouldRegisterUserAndReturnAccessToken() {
+    void shouldRegisterUserAndReturnAccessTokenWithoutSendingVerificationEmail() {
         CreateUserDTO dto = new CreateUserDTO(
                 "lucas",
                 "lucas@email.com",
@@ -65,6 +65,7 @@ class AuthenticationServiceTest {
         savedUser.setName("Lucas Zimmerman");
         savedUser.setRole(UserRole.USER);
         savedUser.setActive(true);
+        savedUser.setEmailVerified(false);
 
         when(userMapper.toEntity(dto))
                 .thenReturn(user);
@@ -90,7 +91,8 @@ class AuthenticationServiceTest {
 
         verify(userMapper).toEntity(dto);
         verify(userService).save(user);
-        verify(emailVerificationService).sendVerification(savedUser);
+        verifyNoInteractions(emailVerificationService);
+        assertThat(savedUser.getEmailVerified()).isFalse();
         ArgumentCaptor<UserPrincipal> principalCaptor =
                 ArgumentCaptor.forClass(UserPrincipal.class);
 
