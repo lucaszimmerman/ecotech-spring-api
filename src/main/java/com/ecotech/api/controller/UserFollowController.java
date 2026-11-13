@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -93,7 +94,7 @@ public class UserFollowController {
     })
     public ResponseEntity<Page<UserSummaryDTO>> findFollowers(
             @PathVariable UUID id,
-            Pageable pageable) {
+            @ParameterObject Pageable pageable) {
         Page<UserSummaryDTO> followers = userFollowService
                 .findFollowers(id, pageable)
                 .map(UserFollow::getFollower)
@@ -114,7 +115,7 @@ public class UserFollowController {
     })
     public ResponseEntity<Page<UserSummaryDTO>> findFollowing(
             @PathVariable UUID id,
-            Pageable pageable) {
+            @ParameterObject Pageable pageable) {
         Page<UserSummaryDTO> following = userFollowService
                 .findFollowing(id, pageable)
                 .map(UserFollow::getFollowed)

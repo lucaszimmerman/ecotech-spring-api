@@ -6,6 +6,7 @@ import org.mapstruct.MappingTarget;
 
 import com.ecotech.api.controller.dto.CreatePostDTO;
 import com.ecotech.api.controller.dto.PostResponseDTO;
+import com.ecotech.api.controller.dto.PostInteractionSummaryDTO;
 import com.ecotech.api.controller.dto.UpdatePostDTO;
 import com.ecotech.api.model.Post;
 
@@ -19,7 +20,10 @@ public interface PostMapper {
     @Mapping(target = "updatedAt", ignore = true)
     Post toEntity(CreatePostDTO createPostDTO);
 
-    PostResponseDTO toResponseDTO(Post post);
+    @Mapping(target = "likeCount", source = "interactions.likeCount")
+    @Mapping(target = "commentCount", source = "interactions.commentCount")
+    @Mapping(target = "likedByCurrentUser", source = "interactions.likedByCurrentUser")
+    PostResponseDTO toResponseDTO(Post post, PostInteractionSummaryDTO interactions);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)

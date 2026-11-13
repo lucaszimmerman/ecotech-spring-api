@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -92,7 +93,7 @@ public class PostLikeController {
     })
     public ResponseEntity<Page<UserSummaryDTO>> findByPostId(
             @PathVariable UUID postId,
-            Pageable pageable) {
+            @ParameterObject Pageable pageable) {
         Page<UserSummaryDTO> users = postLikeService
                 .findByPostId(postId, pageable)
                 .map(PostLike::getUser)

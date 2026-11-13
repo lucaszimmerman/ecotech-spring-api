@@ -19,7 +19,17 @@ public class OpenApiConfiguration {
                 .info(new Info()
                         .title("EcoTech API")
                         .version("v1")
-                        .description("API REST da plataforma EcoTech para autenticacao, usuarios, posts, comentarios, curtidas e seguidores."))
+                        .description("""
+                                API REST da rede social EcoTech, focada em sustentabilidade.
+
+                                Cadastre-se em POST /auth/register ou entre em POST /auth/login.
+                                Copie o accessToken e informe apenas o token no botao Authorize (bearerAuth).
+                                As operacoes de usuarios e posts exigem autenticacao; operacoes administrativas exigem ADMIN.
+
+                                Listagens usam page (inicia em 0), size (maximo 100) e sort (campo,direcao).
+                                Posts incluem likeCount, commentCount e likedByCurrentUser.
+                                A verificacao de email e solicitada apos o cadastro, por acao do usuario.
+                                """))
                 .components(new Components()
                         .addSecuritySchemes(BEARER_AUTH, new SecurityScheme()
                                 .name(BEARER_AUTH)

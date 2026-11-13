@@ -15,9 +15,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -39,6 +41,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.ecotech.api.controller.dto.CreatePostDTO;
 import com.ecotech.api.controller.dto.PostResponseDTO;
+import com.ecotech.api.controller.dto.PostInteractionSummaryDTO;
 import com.ecotech.api.controller.dto.UpdatePostDTO;
 import com.ecotech.api.controller.dto.UserSummaryDTO;
 import com.ecotech.api.controller.mappers.PostMapper;
@@ -47,6 +50,7 @@ import com.ecotech.api.model.User;
 import com.ecotech.api.security.PostAuthorization;
 import com.ecotech.api.service.ImageStorageService;
 import com.ecotech.api.service.PostService;
+import com.ecotech.api.service.PostInteractionService;
 import com.ecotech.api.support.TestJwtProperties;
 
 @SpringBootTest
@@ -64,6 +68,18 @@ class PostControllerTest {
 
     @MockitoBean
     private PostService postService;
+
+    @MockitoBean
+    private PostInteractionService postInteractionService;
+
+    @BeforeEach
+    void setUpInteractions() {
+        when(postInteractionService.summarize(any(), any())).thenAnswer(invocation -> {
+            List<UUID> ids = invocation.getArgument(0);
+            return ids.stream().collect(Collectors.toMap(id -> id,
+                    id -> new PostInteractionSummaryDTO(2, 1, true)));
+        });
+    }
 
     @MockitoBean
     private PostMapper postMapper;
@@ -118,7 +134,8 @@ class PostControllerTest {
                         user.getName(),
                         user.getProfileImageUrl()),
                 post.getCreatedAt(),
-                post.getUpdatedAt());
+                post.getUpdatedAt(),
+                2, 1, true);
     }
 
     private RequestPostProcessor putMethod() {
@@ -126,6 +143,49 @@ class PostControllerTest {
             request.setMethod("PUT");
             return request;
         };
+    }
+
+    @Test
+    void shouldGetAuthenticatedUsersFeedWithInteractionsAndDefaultOrder() throws Exception {
+        UUID viewerId = UUID.randomUUID();
+        Post post = createPost(UUID.randomUUID(), UUID.randomUUID());
+        when(postService.findFeed(eq(viewerId), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(post), PageRequest.of(0, 20), 1));
+        when(postMapper.toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class)))
+                .thenReturn(createResponseDTO(post));
+
+        mockMvc.perform(get("/posts/feed").with(jwt().jwt(token -> token.subject(viewerId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(post.getId().toString()))
+                .andExpect(jsonPath("$.content[0].likeCount").value(2))
+                .andExpect(jsonPath("$.content[0].commentCount").value(1))
+                .andExpect(jsonPath("$.content[0].likedByCurrentUser").value(true));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(postService).findFeed(eq(viewerId), captor.capture());
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getSort().getOrderFor("createdAt").isDescending())
+                .isTrue();
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getSort().getOrderFor("id").isDescending())
+                .isTrue();
+        verify(postInteractionService).summarize(List.of(post.getId()), viewerId);
+    }
+
+    @Test
+    void shouldReturnEmptyFeed() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(postService.findFeed(eq(userId), any(Pageable.class))).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/posts/feed").with(jwt().jwt(token -> token.subject(userId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void shouldRequireAuthenticationForFeed() throws Exception {
+        mockMvc.perform(get("/posts/feed"))
+                .andExpect(status().isUnauthorized());
+        org.mockito.Mockito.verifyNoInteractions(postService, postInteractionService);
     }
 
     @Test
@@ -206,7 +266,7 @@ class PostControllerTest {
         when(postService.findById(postId))
                 .thenReturn(post);
 
-        when(postMapper.toResponseDTO(post))
+        when(postMapper.toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class)))
                 .thenReturn(responseDTO);
 
         mockMvc.perform(get("/posts/{id}", postId)
@@ -214,10 +274,13 @@ class PostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(postId.toString()))
                 .andExpect(jsonPath("$.content").value(post.getContent()))
+                .andExpect(jsonPath("$.likeCount").value(2))
+                .andExpect(jsonPath("$.commentCount").value(1))
+                .andExpect(jsonPath("$.likedByCurrentUser").value(true))
                 .andExpect(jsonPath("$.user.id").value(userId.toString()));
 
         verify(postService).findById(postId);
-        verify(postMapper).toResponseDTO(post);
+        verify(postMapper).toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class));
     }
 
     @Test
@@ -232,7 +295,7 @@ class PostControllerTest {
         when(postService.findAll(any(Pageable.class)))
                 .thenReturn(page);
 
-        when(postMapper.toResponseDTO(post))
+        when(postMapper.toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class)))
                 .thenReturn(createResponseDTO(post));
 
         mockMvc.perform(get("/posts")
@@ -241,10 +304,13 @@ class PostControllerTest {
                         .with(jwt().jwt(jwt -> jwt.subject(userId.toString()))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(post.getId().toString()))
+                .andExpect(jsonPath("$.content[0].likeCount").value(2))
+                .andExpect(jsonPath("$.content[0].commentCount").value(1))
+                .andExpect(jsonPath("$.content[0].likedByCurrentUser").value(true))
                 .andExpect(jsonPath("$.totalElements").value(1));
 
         verify(postService).findAll(any(Pageable.class));
-        verify(postMapper).toResponseDTO(post);
+        verify(postMapper).toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class));
     }
 
     @Test
@@ -259,7 +325,7 @@ class PostControllerTest {
         when(postService.findByUserId(eq(userId), any(Pageable.class)))
                 .thenReturn(page);
 
-        when(postMapper.toResponseDTO(post))
+        when(postMapper.toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class)))
                 .thenReturn(createResponseDTO(post));
 
         mockMvc.perform(get("/posts/user/{userId}", userId)
@@ -271,7 +337,7 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.totalElements").value(1));
 
         verify(postService).findByUserId(eq(userId), any(Pageable.class));
-        verify(postMapper).toResponseDTO(post);
+        verify(postMapper).toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class));
     }
 
     @Test

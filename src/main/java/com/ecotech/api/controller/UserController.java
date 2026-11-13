@@ -5,6 +5,11 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,11 +30,11 @@ import com.ecotech.api.controller.dto.CreateUserDTO;
 import com.ecotech.api.controller.dto.UpdateUserDTO;
 import com.ecotech.api.controller.dto.UserResponseDTO;
 import com.ecotech.api.controller.dto.UserPublicProfileDTO;
+import com.ecotech.api.controller.dto.UserSummaryDTO;
 import com.ecotech.api.controller.mappers.UserMapper;
 import com.ecotech.api.model.User;
 import com.ecotech.api.service.UserService;
 
-import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,11 +50,25 @@ import static com.ecotech.api.config.OpenApiConfiguration.BEARER_AUTH;
 @RequiredArgsConstructor
 @Tag(name = "Users")
 @SecurityRequirement(name = BEARER_AUTH)
-@Hidden
 public class UserController implements GenericController {
 
     private final UserService userService;
     private final UserMapper userMapper;
+
+    @GetMapping("/search")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Busca usuarios por nome ou username",
+            description = "Busca parcial sem diferenciar maiusculas e minusculas. Sem q, lista usuarios ativos. Retorna apenas dados publicos.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Usuarios encontrados, com paginacao"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "422", description = "Busca maior que 100 caracteres")
+    })
+    public ResponseEntity<Page<UserSummaryDTO>> search(
+            @RequestParam(defaultValue = "") String q,
+            @ParameterObject @PageableDefault(size = 20, sort = {"username", "id"}) Pageable pageable) {
+        return ResponseEntity.ok(userService.search(q, pageable).map(userMapper::toSummaryDTO));
+    }
 
     @PostMapping
     @Operation(summary = "Cria um usuario")
@@ -203,7 +222,7 @@ public class UserController implements GenericController {
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/me/profile-image")
+    @PatchMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Atualiza a imagem de perfil do usuario autenticado")
     @ApiResponses({
@@ -224,7 +243,7 @@ public class UserController implements GenericController {
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/me/cover-image")
+    @PatchMapping(value = "/me/cover-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Atualiza a imagem de capa do usuario autenticado")
     @ApiResponses({

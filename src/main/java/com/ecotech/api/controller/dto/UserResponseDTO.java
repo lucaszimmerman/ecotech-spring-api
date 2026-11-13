@@ -15,6 +15,7 @@ public record UserResponseDTO(UUID id,
     String website,
     String bio,
     Boolean active,
+    Boolean emailVerified,
     UserRole role,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
