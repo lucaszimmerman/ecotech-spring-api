@@ -21,7 +21,6 @@ import com.ecotech.api.service.AuthenticationService;
 import com.ecotech.api.service.EmailVerificationService;
 import com.ecotech.api.service.PasswordRecoveryService;
 
-import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,7 +35,6 @@ import static com.ecotech.api.config.OpenApiConfiguration.BEARER_AUTH;
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 @Tag(name = "Authentication")
-@Hidden
 public class AuthController {
 
     private final AuthenticationService authenticationService;
@@ -44,7 +42,7 @@ public class AuthController {
     private final PasswordRecoveryService passwordRecoveryService;
 
     @PostMapping("/login")
-    @Operation(summary = "Autentica um usuario com email e senha")
+    @Operation(summary = "Autentica um usuario com username e senha")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Usuario autenticado com sucesso"),
             @ApiResponse(responseCode = "401", description = "Credenciais invalidas"),
@@ -59,7 +57,8 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Registra um novo usuario")
+    @Operation(summary = "Registra um novo usuario",
+            description = "Cria a conta e retorna um JWT. O email permanece nao verificado; o envio da verificacao deve ser solicitado em /auth/resend-verification.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Usuario registrado com sucesso"),
             @ApiResponse(responseCode = "409", description = "Usuario ja cadastrado"),

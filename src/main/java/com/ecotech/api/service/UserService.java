@@ -5,6 +5,8 @@ import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -57,6 +59,15 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<User> findAll() {
         return repository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<User> search(String query, Pageable pageable) {
+        String normalizedQuery = query == null ? "" : query.trim();
+        if (normalizedQuery.length() > 100) {
+            throw new CampoInvalidoException("q", "A busca deve possuir no maximo 100 caracteres.");
+        }
+        return repository.searchActiveUsers(normalizedQuery, pageable);
     }
 
     @Transactional

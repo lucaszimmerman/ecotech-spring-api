@@ -2,10 +2,15 @@ package com.ecotech.api.controller;
 
 import java.net.URI;
 import java.util.UUID;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,6 +31,7 @@ import com.ecotech.api.controller.dto.UpdatePostDTO;
 import com.ecotech.api.controller.mappers.PostMapper;
 import com.ecotech.api.model.Post;
 import com.ecotech.api.service.PostService;
+import com.ecotech.api.service.PostInteractionService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -46,8 +52,9 @@ public class PostController implements GenericController {
 
     private final PostService postService;
     private final PostMapper postMapper;
+    private final PostInteractionService postInteractionService;
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Cria uma publicacao")
     @ApiResponses({
@@ -82,10 +89,12 @@ public class PostController implements GenericController {
             @ApiResponse(responseCode = "404", description = "Publicacao nao encontrada"),
             @ApiResponse(responseCode = "500", description = "Erro interno")
     })
-    public ResponseEntity<PostResponseDTO> getPostById(@PathVariable UUID id) {
+    public ResponseEntity<PostResponseDTO> getPostById(@PathVariable UUID id, Authentication authentication) {
         Post post = postService.findById(id);
 
-        PostResponseDTO response = postMapper.toResponseDTO(post);
+        UUID userId = UUID.fromString(authentication.getName());
+        var interactions = postInteractionService.summarize(List.of(id), userId);
+        PostResponseDTO response = postMapper.toResponseDTO(post, interactions.get(id));
 
         return ResponseEntity.ok(response);
     }
@@ -98,12 +107,27 @@ public class PostController implements GenericController {
             @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
             @ApiResponse(responseCode = "500", description = "Erro interno")
     })
-    public ResponseEntity<Page<PostResponseDTO>> getAllPosts(Pageable pageable) {
-        Page<PostResponseDTO> response = postService
-                .findAll(pageable)
-                .map(postMapper::toResponseDTO);
+    public ResponseEntity<Page<PostResponseDTO>> getAllPosts(
+            @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC) Pageable pageable,
+            Authentication authentication) {
+        Page<PostResponseDTO> response = toResponsePage(postService.findAll(pageable), authentication);
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/feed")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Lista publicacoes das pessoas seguidas",
+            description = "Inclui apenas autores ativos seguidos pelo usuario autenticado. Sem follows, retorna pagina vazia. Ordem padrao: createdAt e id decrescentes.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Feed paginado com resumo de interacoes"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido")
+    })
+    public ResponseEntity<Page<PostResponseDTO>> getFeed(
+            @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC) Pageable pageable,
+            Authentication authentication) {
+        UUID userId = UUID.fromString(authentication.getName());
+        return ResponseEntity.ok(toResponsePage(postService.findFeed(userId, pageable), authentication));
     }
 
     @GetMapping("/user/{userId}")
@@ -116,15 +140,15 @@ public class PostController implements GenericController {
             @ApiResponse(responseCode = "500", description = "Erro interno")
     })
     public ResponseEntity<Page<PostResponseDTO>> getPostsByUserId(
-            @PathVariable UUID userId, Pageable pageable) {
-        Page<PostResponseDTO> response = postService
-                .findByUserId(userId, pageable)
-                .map(postMapper::toResponseDTO);
+            @PathVariable UUID userId,
+            @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC) Pageable pageable,
+            Authentication authentication) {
+        Page<PostResponseDTO> response = toResponsePage(postService.findByUserId(userId, pageable), authentication);
 
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or @postAuthorization.isOwner(#id, authentication)")
     @Operation(summary = "Atualiza uma publicacao")
     @ApiResponses({
@@ -150,7 +174,7 @@ public class PostController implements GenericController {
         postService.update(post, file, removeImage);
 
         return ResponseEntity.noContent().build();
-    };
+    }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @postAuthorization.isOwner(#id, authentication)")
@@ -172,6 +196,13 @@ public class PostController implements GenericController {
         postService.delete(post);
 
         return ResponseEntity.noContent().build();
+    }
+
+    private Page<PostResponseDTO> toResponsePage(Page<Post> posts, Authentication authentication) {
+        UUID userId = UUID.fromString(authentication.getName());
+        var interactions = postInteractionService.summarize(
+                posts.getContent().stream().map(Post::getId).toList(), userId);
+        return posts.map(post -> postMapper.toResponseDTO(post, interactions.get(post.getId())));
     }
 
 }

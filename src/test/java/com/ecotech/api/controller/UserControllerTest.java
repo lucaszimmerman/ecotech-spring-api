@@ -12,12 +12,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.UUID;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -58,6 +63,70 @@ class UserControllerTest {
 
     @MockitoBean
     private ImageStorageService imageStorageService;
+
+    @Test
+    void shouldSearchUsersWithPaginationAndOnlyPublicFields() throws Exception {
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setUsername("eco");
+        user.setName("Eco User");
+        user.setEmail("private@example.com");
+        when(userService.search(eq("eco"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(user), PageRequest.of(0, 10), 1));
+
+        mockMvc.perform(get("/users/search").param("q", "eco").param("size", "10").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].username").value("eco"))
+                .andExpect(jsonPath("$.content[0].email").doesNotExist())
+                .andExpect(jsonPath("$.content[0].emailVerified").doesNotExist())
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void shouldSearchUsersWithoutQueryAndLimitPageSize() throws Exception {
+        when(userService.search(eq(""), any(Pageable.class))).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/users/search").param("size", "1000").with(jwt()))
+                .andExpect(status().isOk());
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(userService).search(eq(""), captor.capture());
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getPageSize()).isEqualTo(100);
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getSort().getOrderFor("username")).isNotNull();
+    }
+
+    @Test
+    void shouldRequireAuthenticationToSearchUsers() throws Exception {
+        mockMvc.perform(get("/users/search").param("q", "eco"))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void shouldExposeUnverifiedEmailStatusOnMe() throws Exception {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setEmailVerified(false);
+        when(userService.findById(userId)).thenReturn(user);
+
+        mockMvc.perform(get("/users/me").with(jwt().jwt(token -> token.subject(userId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.emailVerified").value(false));
+    }
+
+    @Test
+    void shouldExposeVerifiedEmailStatusOnMe() throws Exception {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setEmailVerified(true);
+        when(userService.findById(userId)).thenReturn(user);
+
+        mockMvc.perform(get("/users/me").with(jwt().jwt(token -> token.subject(userId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.emailVerified").value(true));
+    }
 
     @Test
     void shouldReturnAnotherUsersPublicProfileWithoutPrivateFields() throws Exception {

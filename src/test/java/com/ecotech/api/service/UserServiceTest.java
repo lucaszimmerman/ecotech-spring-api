@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +42,21 @@ class UserServiceTest {
     private PasswordEncoder encoder;
 
     private UserService service;
+
+    @Test
+    void shouldTrimSearchQuery() {
+        var pageable = PageRequest.of(0, 10);
+        when(repository.searchActiveUsers("eco", pageable)).thenReturn(Page.empty());
+        assertThat(service.search("  eco  ", pageable)).isEmpty();
+        verify(repository).searchActiveUsers("eco", pageable);
+    }
+
+    @Test
+    void shouldRejectExcessivelyLongSearchQuery() {
+        assertThatThrownBy(() -> service.search("a".repeat(101), PageRequest.of(0, 10)))
+                .isInstanceOf(CampoInvalidoException.class);
+        verifyNoInteractions(repository);
+    }
 
     @BeforeEach
     void setUp() {

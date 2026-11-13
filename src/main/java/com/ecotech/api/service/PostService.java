@@ -92,6 +92,11 @@ public class PostService {
         return repository.findAll(pageable);
     }
 
+    @Transactional(readOnly = true)
+    public Page<Post> findFeed(UUID userId, Pageable pageable) {
+        return repository.findFeed(userId, pageable);
+    }
+
     @Transactional
     public void delete(Post post) {
         String imageUrl = post.getImageUrl();

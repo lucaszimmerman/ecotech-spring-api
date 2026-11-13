@@ -9,7 +9,10 @@ public record PostResponseDTO(
     String imageUrl,
     UserSummaryDTO user,
     LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+    long likeCount,
+    long commentCount,
+    boolean likedByCurrentUser
 ) {
     
 }
