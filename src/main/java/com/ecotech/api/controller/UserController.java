@@ -24,6 +24,7 @@ import com.ecotech.api.controller.dto.ChangePasswordDTO;
 import com.ecotech.api.controller.dto.CreateUserDTO;
 import com.ecotech.api.controller.dto.UpdateUserDTO;
 import com.ecotech.api.controller.dto.UserResponseDTO;
+import com.ecotech.api.controller.dto.UserPublicProfileDTO;
 import com.ecotech.api.controller.mappers.UserMapper;
 import com.ecotech.api.model.User;
 import com.ecotech.api.service.UserService;
@@ -81,6 +82,24 @@ public class UserController implements GenericController {
         User user = userService.findById(id);
 
         UserResponseDTO response = userMapper.toResponseDTO(user);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/profile")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Busca o perfil publico de um usuario")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Perfil publico encontrado"),
+            @ApiResponse(responseCode = "400", description = "Identificador invalido"),
+            @ApiResponse(responseCode = "401", description = "Autenticacao necessaria ou token invalido"),
+            @ApiResponse(responseCode = "404", description = "Usuario nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "Erro interno")
+    })
+    public ResponseEntity<UserPublicProfileDTO> findPublicProfile(@PathVariable UUID id) {
+        User user = userService.findById(id);
+
+        UserPublicProfileDTO response = userMapper.toPublicProfileDTO(user);
 
         return ResponseEntity.ok(response);
     }
