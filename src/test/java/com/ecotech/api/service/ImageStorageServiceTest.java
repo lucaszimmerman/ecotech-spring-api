@@ -39,7 +39,7 @@ class ImageStorageServiceTest {
     void setUp() {
         service = new ImageStorageService(
                 s3Client,
-                new AwsS3Properties(BUCKET_NAME, "us-east-1"));
+                new AwsS3Properties(BUCKET_NAME, "us-east-1", 900));
     }
 
     @Test

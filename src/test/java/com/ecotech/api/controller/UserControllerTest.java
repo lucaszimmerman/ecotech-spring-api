@@ -5,9 +5,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -36,6 +40,7 @@ import com.ecotech.api.exceptions.RegistroNaoEncontradoException;
 import com.ecotech.api.model.User;
 import com.ecotech.api.model.enums.UserRole;
 import com.ecotech.api.service.ImageStorageService;
+import com.ecotech.api.service.ImageUrlService;
 import com.ecotech.api.service.UserService;
 import com.ecotech.api.support.TestJwtProperties;
 
@@ -63,6 +68,36 @@ class UserControllerTest {
 
     @MockitoBean
     private ImageStorageService imageStorageService;
+
+    @MockitoBean
+    private ImageUrlService imageUrlService;
+
+    @Test
+    void shouldPreserveStoredImageKeysWhenUpdatingProfileWithResponseUrls() throws Exception {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setUsername("ecouser");
+        user.setName("Eco User");
+        user.setProfileImageUrl("users/owner/profile/original.png");
+        user.setCoverImageUrl("users/owner/cover/original.png");
+        when(userService.findById(userId)).thenReturn(user);
+
+        String longUrl = "https://example.com/image.png?signature=" + "a".repeat(1000);
+        mockMvc.perform(put("/users/{id}", userId)
+                        .with(jwt().jwt(token -> token.subject(userId.toString())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"ecouser","name":"Eco User",
+                                 "profileImageUrl":"%s","coverImageUrl":"%s"}
+                                """.formatted(longUrl, longUrl)))
+                .andExpect(status().isNoContent());
+
+        assertThat(user.getProfileImageUrl()).isEqualTo("users/owner/profile/original.png");
+        assertThat(user.getCoverImageUrl()).isEqualTo("users/owner/cover/original.png");
+        verify(userService).update(user);
+        verifyNoInteractions(imageUrlService, imageStorageService);
+    }
 
     @Test
     void shouldSearchUsersWithPaginationAndOnlyPublicFields() throws Exception {
@@ -137,6 +172,10 @@ class UserControllerTest {
         user.setName("Eco User");
         user.setProfileImageUrl("users/profile.png");
         user.setCoverImageUrl("users/cover.png");
+        when(imageUrlService.resolve("users/profile.png"))
+                .thenReturn("https://images.example.com/profile.png?signature=temporary");
+        when(imageUrlService.resolve("users/cover.png"))
+                .thenReturn("https://images.example.com/cover.png?signature=temporary");
         user.setCity("Maringa");
         user.setWebsite("https://example.com");
         user.setBio("Sustentabilidade no dia a dia.");
@@ -152,11 +191,12 @@ class UserControllerTest {
                         .with(jwt().jwt(jwt -> jwt.subject(UUID.randomUUID().toString()))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(8))
+                .andExpect(header().string("Cache-Control", containsString("no-store")))
                 .andExpect(jsonPath("$.id").value(userId.toString()))
                 .andExpect(jsonPath("$.username").value("ecouser"))
                 .andExpect(jsonPath("$.name").value("Eco User"))
-                .andExpect(jsonPath("$.profileImageUrl").value("users/profile.png"))
-                .andExpect(jsonPath("$.coverImageUrl").value("users/cover.png"))
+                .andExpect(jsonPath("$.profileImageUrl").value("https://images.example.com/profile.png?signature=temporary"))
+                .andExpect(jsonPath("$.coverImageUrl").value("https://images.example.com/cover.png?signature=temporary"))
                 .andExpect(jsonPath("$.city").value("Maringa"))
                 .andExpect(jsonPath("$.website").value("https://example.com"))
                 .andExpect(jsonPath("$.bio").value("Sustentabilidade no dia a dia."))
