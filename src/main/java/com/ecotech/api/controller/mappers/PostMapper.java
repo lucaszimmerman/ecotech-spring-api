@@ -9,8 +9,9 @@ import com.ecotech.api.controller.dto.PostResponseDTO;
 import com.ecotech.api.controller.dto.PostInteractionSummaryDTO;
 import com.ecotech.api.controller.dto.UpdatePostDTO;
 import com.ecotech.api.model.Post;
+import com.ecotech.api.service.ImageUrlService;
 
-@Mapper(componentModel = "spring", uses = UserMapper.class)
+@Mapper(componentModel = "spring", uses = {UserMapper.class, ImageUrlService.class})
 public interface PostMapper {
 
     @Mapping(target = "id", ignore = true)
@@ -23,6 +24,7 @@ public interface PostMapper {
     @Mapping(target = "likeCount", source = "interactions.likeCount")
     @Mapping(target = "commentCount", source = "interactions.commentCount")
     @Mapping(target = "likedByCurrentUser", source = "interactions.likedByCurrentUser")
+    @Mapping(target = "imageUrl", source = "post.imageUrl", qualifiedByName = "imageUrl")
     PostResponseDTO toResponseDTO(Post post, PostInteractionSummaryDTO interactions);
 
     @Mapping(target = "id", ignore = true)

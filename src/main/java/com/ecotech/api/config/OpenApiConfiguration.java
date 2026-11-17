@@ -29,6 +29,13 @@ public class OpenApiConfiguration {
                                 Listagens usam page (inicia em 0), size (maximo 100) e sort (campo,direcao).
                                 Posts incluem likeCount, commentCount e likedByCurrentUser.
                                 A verificacao de email e solicitada apos o cadastro, por acao do usuario.
+
+                                Imagens do S3 sao retornadas como URLs GET pre-assinadas, com validade padrao de 15 minutos.
+                                Use a URL completa diretamente no src da imagem, sem enviar o JWT para o S3.
+                                Se a URL expirar, consulte novamente o endpoint da API para obter uma nova.
+                                Ausencia de imagem e representada por null. Nao persista URLs temporarias no frontend.
+                                Apos upload de foto ou capa (204), consulte GET /users/me para obter as URLs atualizadas.
+                                Campos de imagem sao ignorados no PUT /users/{id}; use os endpoints multipart dedicados.
                                 """))
                 .components(new Components()
                         .addSecuritySchemes(BEARER_AUTH, new SecurityScheme()

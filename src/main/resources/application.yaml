@@ -50,6 +50,7 @@ aws:
   s3:
     bucket-name: ${AWS_S3_BUCKET_NAME}
     region: ${AWS_REGION}
+    presigned-url-expiration-seconds: ${AWS_S3_PRESIGNED_URL_EXPIRATION_SECONDS:900}
 
   ses:
     from-email: ${AWS_SES_FROM_EMAIL}
