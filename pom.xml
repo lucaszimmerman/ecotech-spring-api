@@ -102,10 +102,12 @@
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
 		</dependency>
+		<!-- Amazon SES desativado.
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>sesv2</artifactId>
 		</dependency>
+		-->
 		<dependency>
 			<groupId>org.mapstruct</groupId>
 			<artifactId>mapstruct</artifactId>
