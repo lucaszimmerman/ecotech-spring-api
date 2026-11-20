@@ -17,9 +17,11 @@ import com.ecotech.api.repository.UserRepository;
 import com.ecotech.api.validator.PostLikeValidator;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PostLikeService {
 
     private final PostLikeRepository repository;
@@ -29,6 +31,7 @@ public class PostLikeService {
 
     @Transactional
     public void like(UUID userId, UUID postId) {
+        log.debug("Iniciando curtida de post. userId={}, postId={}", userId, postId);
         User user = findUserById(userId);
         Post post = findPostById(postId);
 
@@ -39,12 +42,16 @@ public class PostLikeService {
         validator.validateLike(postLike);
 
         repository.save(postLike);
+        log.info("Post curtido com sucesso. userId={}, postId={}", userId, postId);
     }
 
     @Transactional
     public void unlike(UUID userId, UUID postId) {
         repository.findByUserIdAndPostId(userId, postId)
-                .ifPresent(repository::delete);
+                .ifPresentOrElse(postLike -> {
+                    repository.delete(postLike);
+                    log.info("Curtida removida com sucesso. userId={}, postId={}", userId, postId);
+                }, () -> log.debug("Remocao de curtida ignorada: curtida inexistente. userId={}, postId={}", userId, postId));
     }
 
     @Transactional(readOnly = true)

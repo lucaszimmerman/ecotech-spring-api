@@ -1,0 +1,303 @@
+package com.ecotech.api.controller;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.UUID;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import com.ecotech.api.controller.dto.ChangePasswordDTO;
+import com.ecotech.api.exceptions.RegistroNaoEncontradoException;
+import com.ecotech.api.model.User;
+import com.ecotech.api.model.enums.UserRole;
+import com.ecotech.api.service.ImageStorageService;
+import com.ecotech.api.service.ImageUrlService;
+import com.ecotech.api.service.UserService;
+import com.ecotech.api.support.TestJwtProperties;
+
+@SpringBootTest
+@ActiveProfiles("test")
+@AutoConfigureMockMvc
+class UserControllerTest {
+
+    @DynamicPropertySource
+    static void registerJwtProperties(DynamicPropertyRegistry registry) {
+        TestJwtProperties.register(registry);
+    }
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private UserService userService;
+
+    @MockitoBean
+    private AuthenticationProvider authenticationProvider;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    private ImageStorageService imageStorageService;
+
+    @MockitoBean
+    private ImageUrlService imageUrlService;
+
+    @Test
+    void shouldPreserveStoredImageKeysWhenUpdatingProfileWithResponseUrls() throws Exception {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setUsername("ecouser");
+        user.setName("Eco User");
+        user.setProfileImageUrl("users/owner/profile/original.png");
+        user.setCoverImageUrl("users/owner/cover/original.png");
+        when(userService.findById(userId)).thenReturn(user);
+
+        String longUrl = "https://example.com/image.png?signature=" + "a".repeat(1000);
+        mockMvc.perform(put("/users/{id}", userId)
+                        .with(jwt().jwt(token -> token.subject(userId.toString())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"ecouser","name":"Eco User",
+                                 "profileImageUrl":"%s","coverImageUrl":"%s"}
+                                """.formatted(longUrl, longUrl)))
+                .andExpect(status().isNoContent());
+
+        assertThat(user.getProfileImageUrl()).isEqualTo("users/owner/profile/original.png");
+        assertThat(user.getCoverImageUrl()).isEqualTo("users/owner/cover/original.png");
+        verify(userService).update(user);
+        verifyNoInteractions(imageUrlService, imageStorageService);
+    }
+
+    @Test
+    void shouldSearchUsersWithPaginationAndOnlyPublicFields() throws Exception {
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setUsername("eco");
+        user.setName("Eco User");
+        user.setEmail("private@example.com");
+        when(userService.search(eq("eco"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(user), PageRequest.of(0, 10), 1));
+
+        mockMvc.perform(get("/users/search").param("q", "eco").param("size", "10").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].username").value("eco"))
+                .andExpect(jsonPath("$.content[0].email").doesNotExist())
+                .andExpect(jsonPath("$.content[0].emailVerified").doesNotExist())
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void shouldSearchUsersWithoutQueryAndLimitPageSize() throws Exception {
+        when(userService.search(eq(""), any(Pageable.class))).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/users/search").param("size", "1000").with(jwt()))
+                .andExpect(status().isOk());
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(userService).search(eq(""), captor.capture());
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getPageSize()).isEqualTo(100);
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getSort().getOrderFor("username")).isNotNull();
+    }
+
+    @Test
+    void shouldRequireAuthenticationToSearchUsers() throws Exception {
+        mockMvc.perform(get("/users/search").param("q", "eco"))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void shouldExposeUnverifiedEmailStatusOnMe() throws Exception {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setEmailVerified(false);
+        when(userService.findById(userId)).thenReturn(user);
+
+        mockMvc.perform(get("/users/me").with(jwt().jwt(token -> token.subject(userId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.emailVerified").value(false));
+    }
+
+    @Test
+    void shouldExposeVerifiedEmailStatusOnMe() throws Exception {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setEmailVerified(true);
+        when(userService.findById(userId)).thenReturn(user);
+
+        mockMvc.perform(get("/users/me").with(jwt().jwt(token -> token.subject(userId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.emailVerified").value(true));
+    }
+
+    @Test
+    void shouldReturnAnotherUsersPublicProfileWithoutPrivateFields() throws Exception {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setUsername("ecouser");
+        user.setName("Eco User");
+        user.setProfileImageUrl("users/profile.png");
+        user.setCoverImageUrl("users/cover.png");
+        when(imageUrlService.resolve("users/profile.png"))
+                .thenReturn("https://images.example.com/profile.png?signature=temporary");
+        when(imageUrlService.resolve("users/cover.png"))
+                .thenReturn("https://images.example.com/cover.png?signature=temporary");
+        user.setCity("Maringa");
+        user.setWebsite("https://example.com");
+        user.setBio("Sustentabilidade no dia a dia.");
+        user.setEmail("private@example.com");
+        user.setPassword("encoded-password");
+        user.setRole(UserRole.USER);
+        user.setEmailVerified(true);
+        user.setProviderId("private-provider-id");
+
+        when(userService.findById(userId)).thenReturn(user);
+
+        mockMvc.perform(get("/users/{id}/profile", userId)
+                        .with(jwt().jwt(jwt -> jwt.subject(UUID.randomUUID().toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(8))
+                .andExpect(header().string("Cache-Control", containsString("no-store")))
+                .andExpect(jsonPath("$.id").value(userId.toString()))
+                .andExpect(jsonPath("$.username").value("ecouser"))
+                .andExpect(jsonPath("$.name").value("Eco User"))
+                .andExpect(jsonPath("$.profileImageUrl").value("https://images.example.com/profile.png?signature=temporary"))
+                .andExpect(jsonPath("$.coverImageUrl").value("https://images.example.com/cover.png?signature=temporary"))
+                .andExpect(jsonPath("$.city").value("Maringa"))
+                .andExpect(jsonPath("$.website").value("https://example.com"))
+                .andExpect(jsonPath("$.bio").value("Sustentabilidade no dia a dia."))
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(jsonPath("$.role").doesNotExist())
+                .andExpect(jsonPath("$.active").doesNotExist())
+                .andExpect(jsonPath("$.emailVerified").doesNotExist())
+                .andExpect(jsonPath("$.authProvider").doesNotExist())
+                .andExpect(jsonPath("$.providerId").doesNotExist());
+
+        verify(userService).findById(userId);
+    }
+
+    @Test
+    void shouldReturnUnauthorizedWhenPublicProfileRequestHasNoJwt() throws Exception {
+        mockMvc.perform(get("/users/{id}/profile", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenPublicProfileDoesNotExist() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(userService.findById(userId))
+                .thenThrow(new RegistroNaoEncontradoException("Usuario nao encontrado."));
+
+        mockMvc.perform(get("/users/{id}/profile", userId)
+                        .with(jwt()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenPublicProfileIdIsInvalid() throws Exception {
+        mockMvc.perform(get("/users/invalid-id/profile")
+                        .with(jwt()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void shouldKeepAnotherUsersPrivateDetailsRestricted() throws Exception {
+        mockMvc.perform(get("/users/{id}", UUID.randomUUID())
+                        .with(jwt().jwt(jwt -> jwt.subject(UUID.randomUUID().toString()))))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void shouldChangePasswordWhenAuthenticated() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        mockMvc.perform(patch("/users/me/password")
+                        .with(jwt().jwt(jwt -> jwt.subject(userId.toString())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "old-password",
+                                  "newPassword": "new-password",
+                                  "confirmPassword": "new-password"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        verify(userService).changePassword(eq(userId), any(ChangePasswordDTO.class));
+    }
+
+    @Test
+    void shouldReturnUnprocessableEntityWhenNewPasswordIsTooShort() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        mockMvc.perform(patch("/users/me/password")
+                        .with(jwt().jwt(jwt -> jwt.subject(userId.toString())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "old-password",
+                                  "newPassword": "12345",
+                                  "confirmPassword": "12345"
+                                }
+                                """))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.status").value(422));
+    }
+
+    @Test
+    void shouldReturnUnauthorizedWhenChangePasswordRequestHasNoJwt() throws Exception {
+        mockMvc.perform(patch("/users/me/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "old-password",
+                                  "newPassword": "new-password",
+                                  "confirmPassword": "new-password"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+}

@@ -1,6 +1,8 @@
 package com.ecotech.api.repository;
 
 import java.util.Optional;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 
@@ -8,8 +10,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.ecotech.api.model.Comment;
+import com.ecotech.api.repository.projections.PostCount;
 
 public interface CommentRepository extends JpaRepository<Comment, UUID> {
 
@@ -63,6 +68,13 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
             UUID userId);
 
     long countByPostId(UUID postId);
+
+    @Query("""
+            SELECT c.post.id AS postId, COUNT(c) AS total
+            FROM Comment c WHERE c.post.id IN :postIds
+            GROUP BY c.post.id
+            """)
+    List<PostCount> countByPostIds(@Param("postIds") Collection<UUID> postIds);
 
     @EntityGraph(attributePaths = "user")
     Optional<Comment> findByIdAndPostId(

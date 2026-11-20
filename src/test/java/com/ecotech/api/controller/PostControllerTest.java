@@ -2,22 +2,24 @@ package com.ecotech.api.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -33,17 +35,22 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.ecotech.api.controller.dto.CreatePostDTO;
 import com.ecotech.api.controller.dto.PostResponseDTO;
+import com.ecotech.api.controller.dto.PostInteractionSummaryDTO;
 import com.ecotech.api.controller.dto.UpdatePostDTO;
 import com.ecotech.api.controller.dto.UserSummaryDTO;
 import com.ecotech.api.controller.mappers.PostMapper;
 import com.ecotech.api.model.Post;
 import com.ecotech.api.model.User;
 import com.ecotech.api.security.PostAuthorization;
+import com.ecotech.api.service.ImageStorageService;
 import com.ecotech.api.service.PostService;
+import com.ecotech.api.service.PostInteractionService;
 import com.ecotech.api.support.TestJwtProperties;
 
 @SpringBootTest
@@ -63,6 +70,18 @@ class PostControllerTest {
     private PostService postService;
 
     @MockitoBean
+    private PostInteractionService postInteractionService;
+
+    @BeforeEach
+    void setUpInteractions() {
+        when(postInteractionService.summarize(any(), any())).thenAnswer(invocation -> {
+            List<UUID> ids = invocation.getArgument(0);
+            return ids.stream().collect(Collectors.toMap(id -> id,
+                    id -> new PostInteractionSummaryDTO(2, 1, true)));
+        });
+    }
+
+    @MockitoBean
     private PostMapper postMapper;
 
     @MockitoBean
@@ -73,6 +92,9 @@ class PostControllerTest {
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    private ImageStorageService imageStorageService;
 
     private User createUser(UUID userId) {
         User user = new User();
@@ -112,7 +134,58 @@ class PostControllerTest {
                         user.getName(),
                         user.getProfileImageUrl()),
                 post.getCreatedAt(),
-                post.getUpdatedAt());
+                post.getUpdatedAt(),
+                2, 1, true);
+    }
+
+    private RequestPostProcessor putMethod() {
+        return request -> {
+            request.setMethod("PUT");
+            return request;
+        };
+    }
+
+    @Test
+    void shouldGetAuthenticatedUsersFeedWithInteractionsAndDefaultOrder() throws Exception {
+        UUID viewerId = UUID.randomUUID();
+        Post post = createPost(UUID.randomUUID(), UUID.randomUUID());
+        when(postService.findFeed(eq(viewerId), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(post), PageRequest.of(0, 20), 1));
+        when(postMapper.toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class)))
+                .thenReturn(createResponseDTO(post));
+
+        mockMvc.perform(get("/posts/feed").with(jwt().jwt(token -> token.subject(viewerId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(post.getId().toString()))
+                .andExpect(jsonPath("$.content[0].likeCount").value(2))
+                .andExpect(jsonPath("$.content[0].commentCount").value(1))
+                .andExpect(jsonPath("$.content[0].likedByCurrentUser").value(true));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(postService).findFeed(eq(viewerId), captor.capture());
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getSort().getOrderFor("createdAt").isDescending())
+                .isTrue();
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getSort().getOrderFor("id").isDescending())
+                .isTrue();
+        verify(postInteractionService).summarize(List.of(post.getId()), viewerId);
+    }
+
+    @Test
+    void shouldReturnEmptyFeed() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(postService.findFeed(eq(userId), any(Pageable.class))).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/posts/feed").with(jwt().jwt(token -> token.subject(userId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void shouldRequireAuthenticationForFeed() throws Exception {
+        mockMvc.perform(get("/posts/feed"))
+                .andExpect(status().isUnauthorized());
+        org.mockito.Mockito.verifyNoInteractions(postService, postInteractionService);
     }
 
     @Test
@@ -124,34 +197,51 @@ class PostControllerTest {
         when(postMapper.toEntity(any(CreatePostDTO.class)))
                 .thenReturn(post);
 
-        when(postService.save(post, userId))
+        when(postService.save(eq(post), eq(userId), isNull()))
                 .thenReturn(post);
 
-        mockMvc.perform(post("/posts")
+        mockMvc.perform(multipart("/posts")
                         .with(jwt().jwt(jwt -> jwt.subject(userId.toString())))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "content": "Conteudo valido do post.",
-                                  "imageUrl": "https://example.com/image.png"
-                                }
-                                """))
+                        .param("content", "Conteudo valido do post."))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "http://localhost/posts/" + postId));
 
         verify(postMapper).toEntity(any(CreatePostDTO.class));
-        verify(postService).save(post, userId);
+        verify(postService).save(post, userId, null);
+    }
+
+    @Test
+    void shouldCreatePostWithImageWhenAuthenticated() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = createPost(postId, userId);
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "post.png",
+                MediaType.IMAGE_PNG_VALUE,
+                "image".getBytes());
+
+        when(postMapper.toEntity(any(CreatePostDTO.class)))
+                .thenReturn(post);
+
+        when(postService.save(eq(post), eq(userId), any()))
+                .thenReturn(post);
+
+        mockMvc.perform(multipart("/posts")
+                        .file(file)
+                        .with(jwt().jwt(jwt -> jwt.subject(userId.toString())))
+                        .param("content", "Conteudo valido do post."))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "http://localhost/posts/" + postId));
+
+        verify(postMapper).toEntity(any(CreatePostDTO.class));
+        verify(postService).save(eq(post), eq(userId), any());
     }
 
     @Test
     void shouldReturnUnauthorizedWhenRequestHasNoJwt() throws Exception {
-        mockMvc.perform(post("/posts")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "content": "Conteudo valido do post."
-                                }
-                                """))
+        mockMvc.perform(multipart("/posts")
+                        .param("content", "Conteudo valido do post."))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -159,14 +249,9 @@ class PostControllerTest {
     void shouldReturnUnprocessableEntityWhenContentIsInvalid() throws Exception {
         UUID userId = UUID.randomUUID();
 
-        mockMvc.perform(post("/posts")
+        mockMvc.perform(multipart("/posts")
                         .with(jwt().jwt(jwt -> jwt.subject(userId.toString())))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "content": "   "
-                                }
-                                """))
+                        .param("content", "   "))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.status").value(422));
     }
@@ -181,7 +266,7 @@ class PostControllerTest {
         when(postService.findById(postId))
                 .thenReturn(post);
 
-        when(postMapper.toResponseDTO(post))
+        when(postMapper.toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class)))
                 .thenReturn(responseDTO);
 
         mockMvc.perform(get("/posts/{id}", postId)
@@ -189,10 +274,13 @@ class PostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(postId.toString()))
                 .andExpect(jsonPath("$.content").value(post.getContent()))
+                .andExpect(jsonPath("$.likeCount").value(2))
+                .andExpect(jsonPath("$.commentCount").value(1))
+                .andExpect(jsonPath("$.likedByCurrentUser").value(true))
                 .andExpect(jsonPath("$.user.id").value(userId.toString()));
 
         verify(postService).findById(postId);
-        verify(postMapper).toResponseDTO(post);
+        verify(postMapper).toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class));
     }
 
     @Test
@@ -207,7 +295,7 @@ class PostControllerTest {
         when(postService.findAll(any(Pageable.class)))
                 .thenReturn(page);
 
-        when(postMapper.toResponseDTO(post))
+        when(postMapper.toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class)))
                 .thenReturn(createResponseDTO(post));
 
         mockMvc.perform(get("/posts")
@@ -216,10 +304,13 @@ class PostControllerTest {
                         .with(jwt().jwt(jwt -> jwt.subject(userId.toString()))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(post.getId().toString()))
+                .andExpect(jsonPath("$.content[0].likeCount").value(2))
+                .andExpect(jsonPath("$.content[0].commentCount").value(1))
+                .andExpect(jsonPath("$.content[0].likedByCurrentUser").value(true))
                 .andExpect(jsonPath("$.totalElements").value(1));
 
         verify(postService).findAll(any(Pageable.class));
-        verify(postMapper).toResponseDTO(post);
+        verify(postMapper).toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class));
     }
 
     @Test
@@ -234,7 +325,7 @@ class PostControllerTest {
         when(postService.findByUserId(eq(userId), any(Pageable.class)))
                 .thenReturn(page);
 
-        when(postMapper.toResponseDTO(post))
+        when(postMapper.toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class)))
                 .thenReturn(createResponseDTO(post));
 
         mockMvc.perform(get("/posts/user/{userId}", userId)
@@ -246,7 +337,7 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.totalElements").value(1));
 
         verify(postService).findByUserId(eq(userId), any(Pageable.class));
-        verify(postMapper).toResponseDTO(post);
+        verify(postMapper).toResponseDTO(eq(post), any(PostInteractionSummaryDTO.class));
     }
 
     @Test
@@ -261,21 +352,47 @@ class PostControllerTest {
         when(postService.findById(postId))
                 .thenReturn(post);
 
-        mockMvc.perform(put("/posts/{id}", postId)
+        mockMvc.perform(multipart("/posts/{id}", postId)
+                        .with(putMethod())
                         .with(jwt().jwt(jwt -> jwt.subject(userId.toString())))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "content": "Conteudo atualizado.",
-                                  "imageUrl": "https://example.com/updated.png"
-                                }
-                                """))
+                        .param("content", "Conteudo atualizado."))
                 .andExpect(status().isNoContent());
 
         verify(postAuthorization).isOwner(eq(postId), any());
         verify(postService).findById(postId);
         verify(postMapper).updateEntity(any(UpdatePostDTO.class), eq(post));
-        verify(postService).update(post);
+        verify(postService).update(post, null, false);
+    }
+
+    @Test
+    void shouldAllowOwnerToUpdatePostReplacingImage() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = createPost(postId, userId);
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "post.png",
+                MediaType.IMAGE_PNG_VALUE,
+                "image".getBytes());
+
+        when(postAuthorization.isOwner(eq(postId), any()))
+                .thenReturn(true);
+
+        when(postService.findById(postId))
+                .thenReturn(post);
+
+        mockMvc.perform(multipart("/posts/{id}", postId)
+                        .file(file)
+                        .with(putMethod())
+                        .with(jwt().jwt(jwt -> jwt.subject(userId.toString())))
+                        .param("content", "Conteudo atualizado.")
+                        .param("removeImage", "false"))
+                .andExpect(status().isNoContent());
+
+        verify(postAuthorization).isOwner(eq(postId), any());
+        verify(postService).findById(postId);
+        verify(postMapper).updateEntity(any(UpdatePostDTO.class), eq(post));
+        verify(postService).update(eq(post), any(), eq(false));
     }
 
     @Test
@@ -286,14 +403,10 @@ class PostControllerTest {
         when(postAuthorization.isOwner(eq(postId), any()))
                 .thenReturn(false);
 
-        mockMvc.perform(put("/posts/{id}", postId)
+        mockMvc.perform(multipart("/posts/{id}", postId)
+                        .with(putMethod())
                         .with(jwt().jwt(jwt -> jwt.subject(userId.toString())))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "content": "Conteudo atualizado."
-                                }
-                                """))
+                        .param("content", "Conteudo atualizado."))
                 .andExpect(status().isForbidden());
 
         verify(postAuthorization).isOwner(eq(postId), any());
@@ -308,21 +421,18 @@ class PostControllerTest {
         when(postService.findById(postId))
                 .thenReturn(post);
 
-        mockMvc.perform(put("/posts/{id}", postId)
+        mockMvc.perform(multipart("/posts/{id}", postId)
+                        .with(putMethod())
                         .with(jwt()
                                 .jwt(jwt -> jwt.subject(adminId.toString()))
                                 .authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "content": "Conteudo atualizado."
-                                }
-                                """))
+                        .param("content", "Conteudo atualizado.")
+                        .param("removeImage", "true"))
                 .andExpect(status().isNoContent());
 
         verify(postService).findById(postId);
         verify(postMapper).updateEntity(any(UpdatePostDTO.class), eq(post));
-        verify(postService).update(post);
+        verify(postService).update(post, null, true);
     }
 
     @Test

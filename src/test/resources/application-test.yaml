@@ -12,6 +12,34 @@ spring:
     hibernate:
       ddl-auto: create-drop
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+            scope:
+              - openid
+              - profile
+              - email
+
 security:
   jwt:
     issuer: ecotech-api
+    expiration: 3600
+
+aws:
+  s3:
+    bucket-name: ecotech-test
+    region: us-east-1
+  ses:
+    from-email: no-reply@ecotech.test
+    region: us-east-1
+
+app:
+  base-url: http://localhost:8080
+
+cors:
+  allowed-origins:
+    - http://localhost:3000

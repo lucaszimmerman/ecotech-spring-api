@@ -7,6 +7,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.ecotech.api.model.enums.AuthProvider;
 import com.ecotech.api.model.enums.UserRole;
 
 import jakarta.persistence.Column;
@@ -45,7 +46,7 @@ public class User {
     @Column(nullable = false, length = 150)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(length = 255)
     private String password;
 
     @Column(nullable = false, length = 100)
@@ -73,6 +74,16 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false, length = 20)
+    private AuthProvider authProvider = AuthProvider.LOCAL;
+
+    @Column(name = "provider_id", length = 255)
+    private String providerId;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -85,6 +96,12 @@ public class User {
     private void prePersist() {
         if (role == null) {
             role = UserRole.USER;
+        }
+        if (emailVerified == null) {
+            emailVerified = false;
+        }
+        if (authProvider == null) {
+            authProvider = AuthProvider.LOCAL;
         }
     }
 }
