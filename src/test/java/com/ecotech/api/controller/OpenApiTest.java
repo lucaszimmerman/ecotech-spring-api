@@ -40,7 +40,11 @@ class OpenApiTest {
 
         assertThat(paths.has("/auth/register")).isTrue();
         assertThat(paths.has("/auth/login")).isTrue();
-        assertThat(paths.has("/auth/resend-verification")).isTrue();
+        assertThat(paths.has("/auth/resend-verification")).isFalse();
+        assertThat(paths.has("/auth/verify-email")).isFalse();
+        assertThat(paths.has("/auth/forgot-password")).isFalse();
+        assertThat(paths.has("/auth/reset-password")).isFalse();
+        assertThat(paths.path("/users").has("get")).isFalse();
         assertThat(paths.has("/users/me")).isTrue();
         assertThat(paths.has("/users/{id}/profile")).isTrue();
         assertThat(paths.has("/users/search")).isTrue();

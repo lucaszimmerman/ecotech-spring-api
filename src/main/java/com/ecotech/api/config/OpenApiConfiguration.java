@@ -24,11 +24,13 @@ public class OpenApiConfiguration {
 
                                 Cadastre-se em POST /auth/register ou entre em POST /auth/login.
                                 Copie o accessToken e informe apenas o token no botao Authorize (bearerAuth).
-                                As operacoes de usuarios e posts exigem autenticacao; operacoes administrativas exigem ADMIN.
+                                As operacoes de usuarios e posts exigem autenticacao.
+                                Esta documentacao apresenta os recursos disponiveis para teste com uma conta comum.
+                                Operacoes exclusivas de administrador e fluxos de email indisponiveis na demonstracao foram omitidos.
 
                                 Listagens usam page (inicia em 0), size (maximo 100) e sort (campo,direcao).
                                 Posts incluem likeCount, commentCount e likedByCurrentUser.
-                                A verificacao de email e solicitada apos o cadastro, por acao do usuario.
+                                Nao e necessario verificar o email para testar os recursos apresentados.
 
                                 Imagens do S3 sao retornadas como URLs GET pre-assinadas, com validade padrao de 15 minutos.
                                 Use a URL completa diretamente no src da imagem, sem enviar o JWT para o S3.

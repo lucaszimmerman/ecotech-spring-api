@@ -22,6 +22,7 @@ import com.ecotech.api.service.EmailVerificationService;
 import com.ecotech.api.service.PasswordRecoveryService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -58,7 +59,7 @@ public class AuthController {
 
     @PostMapping("/register")
     @Operation(summary = "Registra um novo usuario",
-            description = "Cria a conta e retorna um JWT. O email permanece nao verificado; o envio da verificacao deve ser solicitado em /auth/resend-verification.")
+            description = "Cria a conta e retorna um JWT para testar as operacoes autenticadas. A verificacao de email nao e obrigatoria para utilizar esses recursos.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Usuario registrado com sucesso"),
             @ApiResponse(responseCode = "409", description = "Usuario ja cadastrado"),
@@ -74,6 +75,7 @@ public class AuthController {
     }
 
     @GetMapping("/verify-email")
+    @Hidden
     @Operation(summary = "Confirma o email de um usuario")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Email confirmado com sucesso"),
@@ -92,6 +94,7 @@ public class AuthController {
     }
 
     @PostMapping("/resend-verification")
+    @Hidden
     @Operation(summary = "Envia ou reenvia o email de verificacao", security = @SecurityRequirement(name = BEARER_AUTH))
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Email de verificacao enviado"),
@@ -109,6 +112,7 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
+    @Hidden
     @Operation(summary = "Solicita recuperacao de senha")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Solicitacao processada"),
@@ -124,6 +128,7 @@ public class AuthController {
     }
 
     @PostMapping("/reset-password")
+    @Hidden
     @Operation(summary = "Redefine a senha usando token de recuperacao")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Senha redefinida com sucesso"),

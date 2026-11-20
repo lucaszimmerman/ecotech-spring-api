@@ -36,6 +36,7 @@ import com.ecotech.api.model.User;
 import com.ecotech.api.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -125,6 +126,7 @@ public class UserController implements GenericController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @Hidden
     @Operation(summary = "Lista usuarios")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Usuarios listados"),

@@ -10,7 +10,7 @@ public record LoginRequestDTO(
         String username,
 
         @NotBlank(message = "A senha é obrigatória.")
-        @Size(min = 6, max = 20, message = "A senha deve possuir entre 6 e 20 caracteres.")
+        @Size(min = 6, max = 72, message = "A senha deve possuir entre 6 e 72 caracteres.")
         String password
 
 ) {
