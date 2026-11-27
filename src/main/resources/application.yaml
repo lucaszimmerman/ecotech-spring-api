@@ -58,6 +58,9 @@ aws:
 
 app:
   base-url: ${APP_BASE_URL}
+  frontend:
+    # URL publica do frontend (ex.: https://ecotech.vercel.app). O login Google volta para <url>/auth/google.
+    url: ${APP_FRONTEND_URL:${APP_BASE_URL}}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS}
@@ -90,3 +93,5 @@ logging:
 
 server:
   port: ${PORT:8080}
+  # O Render termina o HTTPS num proxy. Sem isto o redirect_uri do Google sairia como http://.
+  forward-headers-strategy: framework

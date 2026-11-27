@@ -34,6 +34,7 @@ import com.ecotech.api.controller.dto.auth.LoginResponseDTO;
 import com.ecotech.api.controller.dto.auth.ResetPasswordDTO;
 import com.ecotech.api.exceptions.RegistroDuplicadoException;
 import com.ecotech.api.model.enums.UserRole;
+import com.ecotech.api.security.GoogleLoginCodeStore;
 import com.ecotech.api.service.AuthenticationService;
 import com.ecotech.api.service.EmailVerificationService;
 import com.ecotech.api.service.PasswordRecoveryService;
@@ -254,5 +255,32 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.status").value(422));
 
         verifyNoInteractions(passwordRecoveryService);
+    }
+
+    @Autowired
+    private GoogleLoginCodeStore googleLoginCodeStore;
+
+    @Test
+    void shouldExchangeGoogleCodeOnceWithoutJwt() throws Exception {
+        String code = googleLoginCodeStore.issue(new LoginResponseDTO(
+                UUID.randomUUID(),
+                "lucas",
+                "Lucas Zimmerman",
+                UserRole.USER,
+                "google-access-token",
+                "Bearer",
+                3600L));
+        String body = "{\"code\":\"" + code + "\"}";
+
+        mockMvc.perform(post("/auth/google/exchange")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("google-access-token"));
+
+        mockMvc.perform(post("/auth/google/exchange")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized());
     }
 }

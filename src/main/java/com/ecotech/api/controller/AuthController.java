@@ -2,6 +2,7 @@ package com.ecotech.api.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,9 +15,11 @@ import java.util.UUID;
 
 import com.ecotech.api.controller.dto.CreateUserDTO;
 import com.ecotech.api.controller.dto.auth.ForgotPasswordDTO;
+import com.ecotech.api.controller.dto.auth.GoogleCodeExchangeDTO;
 import com.ecotech.api.controller.dto.auth.LoginRequestDTO;
 import com.ecotech.api.controller.dto.auth.LoginResponseDTO;
 import com.ecotech.api.controller.dto.auth.ResetPasswordDTO;
+import com.ecotech.api.security.GoogleLoginCodeStore;
 import com.ecotech.api.service.AuthenticationService;
 import com.ecotech.api.service.EmailVerificationService;
 import com.ecotech.api.service.PasswordRecoveryService;
@@ -41,6 +44,7 @@ public class AuthController {
     private final AuthenticationService authenticationService;
     private final EmailVerificationService emailVerificationService;
     private final PasswordRecoveryService passwordRecoveryService;
+    private final GoogleLoginCodeStore googleLoginCodeStore;
 
     @PostMapping("/login")
     @Operation(summary = "Autentica um usuario com username e senha")
@@ -72,6 +76,22 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(response);
+    }
+
+    @PostMapping("/google/exchange")
+    @Operation(summary = "Troca o codigo de uso unico do login Google pelo JWT",
+            description = "Use o valor de ?code= recebido em <frontend>/auth/google apos /oauth2/authorization/google. O codigo vale 60 segundos e uma unica vez.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Usuario autenticado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Codigo invalido, expirado ou ja utilizado"),
+            @ApiResponse(responseCode = "422", description = "Dados de entrada invalidos")
+    })
+    public ResponseEntity<LoginResponseDTO> exchangeGoogleCode(
+            @RequestBody @Valid GoogleCodeExchangeDTO dto) {
+        return googleLoginCodeStore.consume(dto.code())
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new BadCredentialsException(
+                        "Login com Google expirado. Tente novamente."));
     }
 
     @GetMapping("/verify-email")

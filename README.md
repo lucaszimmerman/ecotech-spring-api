@@ -11,7 +11,7 @@ Perfis, publicações e conexões, com autenticação JWT, login com Google e im
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-[**Explorar no Swagger ↗**](https://ecotech-spring-api.onrender.com/swagger-ui/index.html) · [OpenAPI](https://ecotech-spring-api.onrender.com/v3/api-docs) · [CI](https://github.com/lucaszimmerman/ecotech-spring-api/actions/workflows/ci.yml)
+[**Acessar a EcoTech ↗**](https://ecotech-angular.vercel.app) · [Explorar no Swagger](https://ecotech-spring-api.onrender.com/swagger-ui/index.html) · [OpenAPI](https://ecotech-spring-api.onrender.com/v3/api-docs) · [CI](https://github.com/lucaszimmerman/ecotech-spring-api/actions/workflows/ci.yml)
 
 </div>
 
@@ -24,7 +24,7 @@ Perfis, publicações e conexões, com autenticação JWT, login com Google e im
 
 EcoTech é um projeto de portfólio que implementa o backend de uma rede social para compartilhar conteúdo sobre sustentabilidade. Os usuários podem criar publicações, descobrir pessoas, acompanhar perfis e interagir por curtidas e comentários.
 
-O projeto aplica regras de autorização por recurso, persistência relacional com migrations e integração com serviços de autenticação e armazenamento. A API está disponível para demonstração pelo Swagger; o frontend está previsto como próxima etapa.
+O projeto aplica regras de autorização por recurso, persistência relacional com migrations e integração com serviços de autenticação e armazenamento. A aplicação está publicada em [ecotech-angular.vercel.app](https://ecotech-angular.vercel.app), com o frontend em Angular no repositório [ecotech-angular](https://github.com/lucaszimmerman/ecotech-angular). A API também pode ser explorada diretamente pelo Swagger.
 
 ## Demonstração
 
@@ -36,7 +36,7 @@ O projeto aplica regras de autorização por recurso, persistência relacional c
 
 Para entrar novamente, use **`POST /auth/login`** com seu `username` e sua senha.
 
-O [login com Google](https://ecotech-spring-api.onrender.com/oauth2/authorization/google) é iniciado no navegador. Ao concluir o fluxo, a API retorna um JSON com o token para utilizar no Swagger ou Postman.
+O login com Google está disponível na [interface web](https://ecotech-angular.vercel.app/login). Ao concluir o fluxo, a API redireciona para o frontend com um código de uso único, válido por 60 segundos, que é trocado pelo token em **`POST /auth/google/exchange`**. O JWT não aparece na URL.
 
 Para explorar o feed, cadastre duas contas, publique com uma delas e siga esse perfil com a outra. O endpoint **`GET /posts/feed`** retorna as publicações das pessoas seguidas.
 
@@ -112,11 +112,10 @@ Os testes utilizam H2 e simulações das integrações externas. O GitHub Action
 
 **Envio de e-mails.** A integração com Amazon SES está implementada para verificação de e-mail e recuperação de senha. A liberação para envio a destinatários não verificados está pendente; esses fluxos estão ocultos no Swagger e não fazem parte da demonstração pública.
 
-**Interface.** O repositório contém a API. Os recursos podem ser explorados pelo Swagger ou por um cliente HTTP, como o Postman.
+**Interface.** Este repositório contém a API. A interface web fica em [ecotech-angular](https://github.com/lucaszimmerman/ecotech-angular) e está publicada na Vercel; os recursos também podem ser explorados pelo Swagger ou por um cliente HTTP, como o Postman.
 
 ## Evolução planejada
 
-- Desenvolver o frontend para os fluxos sociais.
 - Liberar os envios de e-mail e tratar devoluções e denúncias de spam.
 - Adicionar limitação de requisições nos endpoints de autenticação e envio de e-mails.
 - Complementar os testes de persistência com PostgreSQL via Testcontainers.

@@ -3,16 +3,17 @@ package com.ecotech.api.security;
 import java.io.IOException;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import com.ecotech.api.config.FrontendProperties;
 import com.ecotech.api.config.JwtProperties;
 import com.ecotech.api.controller.dto.auth.LoginResponseDTO;
 import com.ecotech.api.exceptions.OperacaoNaoPermitidaException;
-import com.ecotech.api.model.User;
 import com.ecotech.api.service.GoogleAuthenticationService;
+import com.ecotech.api.service.GoogleAuthenticationService.GoogleLoginResult;
 import com.ecotech.api.service.JwtService;
 
 import jakarta.servlet.ServletException;
@@ -20,8 +21,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import tools.jackson.databind.ObjectMapper;
 
+/**
+ * Conclui o login Google redirecionando o navegador para o frontend com um
+ * codigo de uso unico. O frontend troca o codigo pelo JWT em
+ * POST /auth/google/exchange.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -31,8 +36,8 @@ public class GoogleOAuth2SuccessHandler
     private final GoogleAuthenticationService googleAuthenticationService;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
-    private final ObjectMapper objectMapper;
-    private final GoogleOAuth2FailureHandler googleOAuth2FailureHandler;
+    private final GoogleLoginCodeStore codeStore;
+    private final FrontendProperties frontendProperties;
 
     @Override
     public void onAuthenticationSuccess(
@@ -44,26 +49,21 @@ public class GoogleOAuth2SuccessHandler
         OidcUser oidcUser =
                 (OidcUser) authentication.getPrincipal();
 
-        User user;
+        GoogleLoginResult result;
 
         try {
-            user = googleAuthenticationService
-                    .authenticate(oidcUser);
+            result = googleAuthenticationService
+                    .authenticateForLogin(oidcUser);
         } catch (OperacaoNaoPermitidaException exception) {
             log.warn("Login Google recusado no success handler: {}", exception.getMessage());
-            googleOAuth2FailureHandler.writeError(
-                    response,
-                    HttpStatus.BAD_REQUEST,
-                    exception.getMessage()
-            );
+            response.sendRedirect(
+                    GoogleOAuth2FailureHandler.errorRedirect(
+                            frontendProperties, exception.getMessage()));
             return;
         }
 
         UserPrincipal principal =
-                new UserPrincipal(user);
-
-        String accessToken =
-                jwtService.generateToken(principal);
+                new UserPrincipal(result.user());
 
         LoginResponseDTO loginResponse =
                 new LoginResponseDTO(
@@ -71,26 +71,21 @@ public class GoogleOAuth2SuccessHandler
                         principal.getUsername(),
                         principal.getName(),
                         principal.getRole(),
-                        accessToken,
+                        jwtService.generateToken(principal),
                         "Bearer",
                         jwtProperties.expiration()
                 );
 
-        response.setStatus(
-                HttpServletResponse.SC_OK
-        );
+        UriComponentsBuilder redirect = UriComponentsBuilder
+                .fromUriString(frontendProperties.callbackUrl())
+                .queryParam("code", codeStore.issue(loginResponse));
 
-        response.setContentType(
-                "application/json"
-        );
+        if (result.created()) {
+            redirect.queryParam("novo", "1");
+        }
 
-        response.setCharacterEncoding("UTF-8");
+        response.sendRedirect(redirect.build().encode().toUriString());
 
-        objectMapper.writeValue(
-                response.getWriter(),
-                loginResponse
-        );
-
-        log.info("Resposta de login Google enviada. userId={}", principal.getId());
+        log.info("Login Google concluido, redirecionando ao frontend. userId={}", principal.getId());
     }
 }
