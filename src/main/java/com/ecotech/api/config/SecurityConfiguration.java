@@ -41,6 +41,7 @@ public class SecurityConfiguration {
         private static final String[] PUBLIC_POST_ENDPOINTS = {
                         "/auth/register",
                         "/auth/login",
+                        "/auth/google/exchange",
                         "/auth/forgot-password",
                         "/auth/reset-password"
         };

@@ -23,8 +23,16 @@ public class GoogleAuthenticationService {
 
     private final UserRepository userRepository;
 
+    public record GoogleLoginResult(User user, boolean created) {
+    }
+
     @Transactional
     public User authenticate(OidcUser oidcUser) {
+        return authenticateForLogin(oidcUser).user();
+    }
+
+    @Transactional
+    public GoogleLoginResult authenticateForLogin(OidcUser oidcUser) {
         log.debug("Iniciando autenticacao Google.");
 
         String providerId = oidcUser.getSubject();
@@ -46,12 +54,14 @@ public class GoogleAuthenticationService {
                 )
                 .map(user -> {
                     log.info("Login Google concluido para usuario existente. userId={}", user.getId());
-                    return user;
+                    return new GoogleLoginResult(user, false);
                 })
-                .orElseGet(() -> createGoogleUser(
-                        providerId,
-                        email,
-                        name));
+                .orElseGet(() -> new GoogleLoginResult(
+                        createGoogleUser(
+                                providerId,
+                                email,
+                                name),
+                        true));
     }
 
     private User createGoogleUser(
